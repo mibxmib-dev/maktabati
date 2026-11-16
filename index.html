@@ -402,35 +402,42 @@ $('btnPrev').onclick = function () { if (qIndex > 0) play(qIndex - 1); };
 $('btnNext').onclick = function () { if (qIndex < queue.length - 1) play(qIndex + 1); };
 
 /* ===== تسجيل الدخول عبر Google ===== */
-function loadGoogle() {
-  return new Promise(function (ok, fail) {
-    if (window.google && google.accounts && google.accounts.oauth2) return ok();
-    var s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.async = true;
-    s.onload = function () { ok(); }; s.onerror = function () { fail(); };
-    document.head.appendChild(s);
+var gsiState = 'loading';
+function initClient() {
+  if (tokenClient || !clientId || !(window.google && google.accounts && google.accounts.oauth2)) return;
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: clientId, scope: SCOPE,
+    callback: function (r) {
+      if (r && r.access_token) { token = r.access_token; demo = false; openLibrary(); }
+      else showMsg('لم يكتمل تسجيل الدخول' + (r && r.error ? ' (' + r.error + ')' : '') + '. حاول مرة أخرى.');
+    },
+    error_callback: function (e) {
+      var t = e && e.type;
+      if (t === 'popup_failed_to_open') showMsg('منع المتصفح نافذة Google. اسمح بالنوافذ المنبثقة لهذا الموقع ثم اضغط الزر مرة أخرى.');
+      else if (t === 'popup_closed') showMsg('أُغلقت نافذة Google قبل إتمام الدخول.');
+      else showMsg('تعذّر تسجيل الدخول' + (t ? ' (' + t + ')' : '') + '.');
+    }
   });
 }
+(function () {
+  var s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.async = true;
+  s.onload = function () { gsiState = 'ready'; try { initClient(); } catch (e) { gsiState = 'error:' + e.message; } };
+  s.onerror = function () { gsiState = 'blocked'; };
+  document.head.appendChild(s);
+})();
 $('btnSignin').onclick = function () {
   showMsg('');
-  if (!clientId || !rootId) { $('setup').open = true; showMsg('أكمل «إعداد الربط» أولاً: معرّف العميل ورابط المجلد الرئيسي.'); return; }
-  loadGoogle().then(function () {
-    tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: clientId, scope: SCOPE,
-      callback: function (r) {
-        if (r && r.access_token) { token = r.access_token; demo = false; openLibrary(); }
-        else showMsg('لم يكتمل تسجيل الدخول. حاول مرة أخرى.');
-      },
-      error_callback: function () { showMsg('أُغلقت نافذة Google قبل إتمام الدخول، أو منعها المتصفح.'); }
-    });
-    tokenClient.requestAccessToken();
-  }).catch(function (e) {
-    if (!/github\.io$/.test(location.hostname)) showMsg('تسجيل الدخول لا يعمل في هذه المعاينة. افتح الموقع: https://mibxmib-dev.github.io/maktabati/');
-    else showMsg('تعذّر تحميل نافذة Google' + (e && e.message ? ' (' + e.message + ')' : '') + '. تأكد من الاتصال، وأوقف مانع الإعلانات إن وجد، ثم أعد المحاولة.');
-  });
+  if (!clientId || !rootId) { $('setup').hidden = false; $('setup').open = true; showMsg('أكمل «إعداد الربط» أولاً: معرّف العميل ورابط المجلد الرئيسي.'); return; }
+  if (!/github\.io$/.test(location.hostname) && location.protocol !== 'file:') { showMsg('تسجيل الدخول لا يعمل في هذه المعاينة. افتح الموقع: https://mibxmib-dev.github.io/maktabati/'); return; }
+  if (gsiState === 'loading') { showMsg('جارٍ تجهيز تسجيل الدخول، اضغط الزر مرة أخرى بعد ثانيتين.'); return; }
+  if (gsiState === 'blocked') { showMsg('تعذّر تحميل خدمة Google. تأكد من الاتصال، وأوقف مانع الإعلانات أو DNS الخاص إن وجد، ثم حدّث الصفحة.'); return; }
+  if (gsiState.indexOf('error:') === 0) { showMsg('خطأ في تجهيز الدخول (' + gsiState.slice(6) + ').'); return; }
+  try { initClient(); tokenClient.requestAccessToken(); }
+  catch (e) { showMsg('خطأ في تسجيل الدخول (' + (e && e.message) + ').'); }
 };
 $('btnDemo').onclick = function () { demo = true; token = null; openLibrary(); };
 $('btnSave').onclick = function () {
-  clientId = $('inClient').value.trim(); rootId = folderId($('inFolder').value);
+  tokenClient = null; clientId = $('inClient').value.trim(); rootId = folderId($('inFolder').value);
   store('mk_client', clientId); store('mk_folder', $('inFolder').value.trim());
   showMsg(clientId && rootId ? 'تم حفظ الإعداد على هذا المتصفح. اضغط تسجيل الدخول.' : 'أدخل معرّف العميل ورابط المجلد.');
 };
