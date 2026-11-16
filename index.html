@@ -423,8 +423,9 @@ $('btnSignin').onclick = function () {
       error_callback: function () { showMsg('أُغلقت نافذة Google قبل إتمام الدخول، أو منعها المتصفح.'); }
     });
     tokenClient.requestAccessToken();
-  }).catch(function () {
-    showMsg('تعذّر فتح تسجيل الدخول من هذه المعاينة. يعمل بعد رفع الصفحة على موقعك (مثل GitHub Pages). جرّب الآن «عرض تجريبي».');
+  }).catch(function (e) {
+    if (!/github\.io$/.test(location.hostname)) showMsg('تسجيل الدخول لا يعمل في هذه المعاينة. افتح الموقع: https://mibxmib-dev.github.io/maktabati/');
+    else showMsg('تعذّر تحميل نافذة Google' + (e && e.message ? ' (' + e.message + ')' : '') + '. تأكد من الاتصال، وأوقف مانع الإعلانات إن وجد، ثم أعد المحاولة.');
   });
 };
 $('btnDemo').onclick = function () { demo = true; token = null; openLibrary(); };
