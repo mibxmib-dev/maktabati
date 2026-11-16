@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>مكتبتي</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap">
+<style>
+:root{
+  /* عالم بصري واحد داكن: شريط علوي، تبويبات للأقسام، شبكة مجلدات ثم قائمة تشغيل */
+  --ground:#0F1217; --surface:#171C24; --raised:#222935; --line:#2D3542;
+  --text:#F2F0EA; --muted:#A9B0BC; --accent:#F2B45A; --on-accent:#1A1408; --warn:#F0A08A;
+  --font:'IBM Plex Sans Arabic','Segoe UI',Tahoma,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--ground);color:var(--text);font-family:var(--font);font-size:16px;line-height:1.6}
+button,input{font-family:inherit;font-size:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+
+/* الدخول */
+#signin{min-height:100%;display:flex;align-items:center;justify-content:center;padding:32px 20px}
+.card{width:100%;max-width:420px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:28px 24px;display:flex;flex-direction:column;gap:16px}
+.card h1{margin:0;font-size:28px;line-height:1.3}
+.card p{margin:0;color:var(--muted);font-size:14px}
+.btn{min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--raised);color:var(--text);padding:0 18px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:10px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
+.btn.small{min-height:44px;font-size:14px}
+.msg{font-size:14px;color:var(--warn);background:#2A1F1C;border:1px solid #4A322C;border-radius:10px;padding:10px 12px}
+details{border-top:1px solid var(--line);padding-top:12px}
+summary{cursor:pointer;font-size:14px;color:var(--muted);min-height:32px}
+.field{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.field label{font-size:13px;color:var(--muted)}
+.field input{min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--ground);color:var(--text);padding:0 12px;direction:ltr;text-align:left}
+
+/* المكتبة */
+header.top{position:sticky;top:0;background:var(--ground);border-bottom:1px solid var(--line);z-index:5}
+.top .wrap{display:flex;align-items:center;gap:10px;min-height:64px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px}
+.top h1{margin:0;font-size:22px}
+.top h1 button{background:none;border:0;color:var(--text);font:inherit;font-weight:700;min-height:44px;padding:0}
+.search{flex:1 1 220px;min-height:44px;border-radius:22px;border:1px solid var(--line);background:var(--surface);color:var(--text);padding:0 18px}
+.search::placeholder{color:var(--muted)}
+.badge{font-size:12px;color:var(--on-accent);background:var(--accent);border-radius:20px;padding:2px 10px;font-weight:700}
+.status{font-size:13px;color:var(--muted);padding:10px 0 0}
+main{padding-bottom:48px}
+.rowhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:22px 0 10px}
+.rowhead h2{margin:0;font-size:18px;font-weight:700}
+.rowhead button{background:none;border:0;color:var(--muted);min-height:44px;font-size:14px;text-decoration:underline}
+.row{display:flex;gap:12px;overflow-x:auto;padding-bottom:10px;scroll-snap-type:x proximity}
+.card{flex:0 0 132px;width:132px;scroll-snap-align:start;background:none;border:0;color:var(--text);padding:0;display:flex;flex-direction:column;gap:6px;text-align:right}
+.tile{width:132px;height:190px;border-radius:12px;border:1px solid var(--line);background:var(--surface);overflow:hidden;display:block}
+.tile img{width:100%;height:100%;object-fit:cover;display:block}
+.card:hover .tile,.card:focus-visible .tile{border-color:var(--accent)}
+.card .name{font-size:14px;font-weight:500;line-height:1.4;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card .meta{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:10px 0 0;font-size:14px;color:var(--muted)}
+.crumbs button{background:none;border:0;color:var(--muted);min-height:44px;padding:0 6px;text-decoration:underline}
+.crumbs .here{color:var(--text);font-weight:700;padding:0 6px}
+h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:16px 12px}
+.folder{min-height:96px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--text);padding:14px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;text-align:right;gap:10px}
+.folder:hover,.video:hover{background:var(--raised)}
+.folder span{font-weight:500;overflow-wrap:anywhere}
+.folder svg{color:var(--accent)}
+.list{display:flex;flex-direction:column;gap:8px}
+.video{min-height:60px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--text);padding:8px 12px;display:flex;align-items:center;gap:12px;text-align:right;width:100%}
+.video .play{width:40px;height:40px;border-radius:20px;background:var(--accent);color:var(--on-accent);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.video .txt{flex:1;display:flex;flex-direction:column;min-width:0}
+.video .name{overflow-wrap:anywhere;font-weight:500}
+.video .where{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.video .dur{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;direction:ltr}
+.state{color:var(--muted);padding:28px 0;text-align:center}
+
+/* المشغّل */
+#player{position:fixed;inset:0;background:#000;z-index:20;display:flex;flex-direction:column}
+.pbar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--ground);flex-wrap:wrap}
+.pbar .ptitle{flex:1;min-width:140px;font-weight:700;overflow-wrap:anywhere}
+.pbar a{color:var(--accent);font-size:14px;min-height:44px;display:inline-flex;align-items:center;padding:0 6px}
+.stage{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
+.stage iframe{width:100%;height:100%;border:0}
+.stage .demo{color:var(--muted);text-align:center;padding:24px;max-width:420px}
+@media (prefers-reduced-motion:no-preference){.folder,.video,.tab{transition:background .15s}}
+</style>
+</head>
+<body>
+
+<section id="signin">
+  <div class="card">
+    <h1>مكتبتي</h1>
+    <p>أفلامك ومسلسلاتك من مجلدك في Google Drive، تُشغَّل مباشرة بدون تحميل.</p>
+    <button class="btn primary" id="btnSignin" type="button">تسجيل الدخول بحساب Google</button>
+    <button class="btn" id="btnDemo" type="button">عرض تجريبي ببيانات وهمية</button>
+    <div class="msg" id="signinMsg" hidden></div>
+    <p>يفتح الزر نافذة Google الرسمية. كلمة المرور تُكتب هناك فقط، وهذه الصفحة تطلب صلاحية القراءة فقط من Drive، لعرض الأسماء وصور الأغلفة.</p>
+    <details id="setup">
+      <summary>إعداد الربط (مرة واحدة)</summary>
+      <div class="field"><label for="inClient">معرّف العميل OAuth Client ID</label><input id="inClient" autocomplete="off" placeholder="xxxxxxxx.apps.googleusercontent.com"></div>
+      <div class="field"><label for="inFolder">رابط المجلد الرئيسي في Drive</label><input id="inFolder" autocomplete="off" placeholder="https://drive.google.com/drive/folders/..."></div>
+      <div class="field"><button class="btn small" id="btnSave" type="button">حفظ الإعداد</button></div>
+    </details>
+  </div>
+</section>
+
+<div id="library" hidden>
+  <header class="top"><div class="wrap">
+    <h1><button id="btnHome" type="button">مكتبتي</button></h1>
+    <span class="badge" id="demoBadge" hidden>عرض تجريبي</span>
+    <input class="search" id="q" type="search" autocomplete="off" placeholder="ابحث عن فيلم أو مسلسل أو حلقة" aria-label="بحث في المكتبة">
+    <button class="btn small" id="btnRefresh" type="button">تحديث</button>
+    <button class="btn small" id="btnSignout" type="button">تسجيل الخروج</button>
+  </div></header>
+  <main class="wrap">
+    <div class="status" id="status" hidden></div>
+    <nav class="crumbs" id="crumbs" aria-label="المسار" hidden></nav>
+    <div id="content"></div>
+  </main>
+</div>
+
+<div id="player" hidden>
+  <div class="pbar">
+    <button class="btn small" id="btnClose" type="button">إغلاق</button>
+    <div class="ptitle" id="ptitle"></div>
+    <button class="btn small" id="btnPrev" type="button">السابق</button>
+    <button class="btn small" id="btnNext" type="button">التالي</button>
+    <a id="openDrive" href="#" target="_blank" rel="noopener">فتح في Drive</a>
+  </div>
+  <div class="stage" id="stage"></div>
+</div>
+
+<script>
+/* ===== الإعداد: يمكن كتابة القيم هنا مباشرة بدل إدخالها من الصفحة ===== */
+var CONFIG = { clientId: '', folder: '1DKkSPFMiBHOxoasN_sQkC9IDAtRTVZ8O' };
+var SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+var FOLDER_MIME = 'application/vnd.google-apps.folder';
+var TILE = ['#3A2F3F', '#2F3B35', '#40362A', '#2A3441', '#3B2E2E', '#2E3340'];
+
+var $ = function (id) { return document.getElementById(id); };
+function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+function folderId(s) { s = (s || '').trim(); var m = s.match(/folders\/([\w-]+)/) || s.match(/[?&]id=([\w-]+)/); return m ? m[1] : s; }
+function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function icon(path, size, fill) {
+  var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('width', size); s.setAttribute('height', size); s.setAttribute('aria-hidden', 'true');
+  if (fill) s.setAttribute('fill', 'currentColor'); else { s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '2'); s.setAttribute('stroke-linejoin', 'round'); }
+  var p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', path); s.appendChild(p); return s;
+}
+function fmt(ms) { if (!ms) return ''; var m = Math.round(ms / 60000), h = Math.floor(m / 60); return h ? h + ':' + String(m % 60).padStart(2, '0') + ' س' : m + ' د'; }
+function clean(n) { return n.replace(/\.[a-z0-9]{2,4}$/i, ''); }
+function norm(t) { return (t || '').toLowerCase().replace(/[ً-ْـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/[._\-]+/g, ' ').trim(); }
+function hue(t) { var h = 0; for (var i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0; return TILE[h % TILE.length]; }
+
+var clientId = CONFIG.clientId || store('mk_client') || '';
+var rootId = folderId(CONFIG.folder || store('mk_folder') || '');
+$('inClient').value = clientId; $('inFolder').value = CONFIG.folder || store('mk_folder') || '';
+
+var token = null, demo = false, tokenClient = null;
+var nodes = {}, rootKey = '', crawlGen = 0, crawling = false, fatal = '';
+var view = 'home', cur = '', query = '';
+var queue = [], qIndex = 0, timer = null;
+
+function showMsg(t) { var m = $('signinMsg'); m.textContent = t; m.hidden = !t; }
+function node(id, name, folder, parent, dur) { return nodes[id] = { id: id, name: name, folder: folder, parent: parent, dur: dur || 0, kids: folder ? null : undefined }; }
+
+/* ===== بيانات العرض التجريبي ===== */
+function demoTree() {
+  var n = 0;
+  function dir(name, parent) { var d = node('demo-' + (++n), name, true, parent); d.kids = []; nodes[parent].kids.push(d.id); return d.id; }
+  function vid(name, parent, mins) { var v = node('demo-' + (++n), name + '.mp4', false, parent, mins * 60000); nodes[parent].kids.push(v.id); }
+  var i, s, e, x;
+  function pic(k) {
+    var c = TILE[k % TILE.length];
+    return 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 132 190"><rect width="132" height="190" fill="' + c + '"/><circle cx="' + (30 + k * 17 % 70) + '" cy="70" r="46" fill="#F2B45A" opacity=".55"/><rect x="0" y="120" width="132" height="70" fill="#0F1217" opacity=".55"/><text x="66" y="160" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#F2F0EA">صورة تجريبية</text></svg>');
+  }
+  var films = dir('أفلام', rootKey), shows = dir('مسلسلات', rootKey);
+  var fa = dir('عربي', films), fe = dir('انجليزي', films), sa = dir('عربي', shows), se = dir('انجليزي', shows);
+  for (i = 1; i <= 6; i++) vid('فيلم تجريبي ' + i, fa, 95 + i * 4);
+  nodes[fa].images = [1, 2, 4].map(function (k) { return { id: 'pf' + k, name: 'فيلم تجريبي ' + k + '.jpg', thumb: pic(k) }; });
+  nodes[fe].images = [1, 3, 4, 6].map(function (k) { return { id: 'pe' + k, name: 'Demo Movie ' + k + '.jpg', thumb: pic(k + 2) }; });
+  for (i = 1; i <= 7; i++) vid('Demo Movie ' + i, fe, 100 + i * 3);
+  ['أ', 'ب', 'ج', 'د'].forEach(function (l, k) { x = dir('مسلسل تجريبي ' + l, sa); if (k !== 1) nodes[x].images = [{ id: 'ps' + k, name: 'poster.jpg', thumb: pic(k + 1) }]; for (s = 1; s <= 1 + k % 2; s++) { var ss = dir('الموسم ' + s, x); for (e = 1; e <= 6; e++) vid('الحلقة ' + e, ss, 42); } });
+  ['A', 'B', 'C', 'D', 'E'].forEach(function (l, k) { x = dir('Demo Series ' + l, se); if (k % 2 === 0) nodes[x].images = [{ id: 'pt' + k, name: 'poster.jpg', thumb: pic(k + 3) }]; for (s = 1; s <= 1 + k % 3; s++) { var ss = dir('Season ' + s, x); for (e = 1; e <= 8; e++) vid('Episode ' + e, ss, 50); } });
+}
+
+/* ===== قراءة Drive وفهرسة المكتبة ===== */
+function loadKids(id) {
+  var nd = nodes[id];
+  if (nd.kids) return Promise.resolve(nd.kids);
+  if (nd.loading) return nd.loading;
+  var ids = [], imgs = [];
+  function page(tok) {
+    var q = "'" + id + "' in parents and trashed = false and (mimeType = '" + FOLDER_MIME + "' or mimeType contains 'video/' or mimeType contains 'image/')";
+    var url = 'https://www.googleapis.com/drive/v3/files?pageSize=200&orderBy=folder,name_natural' +
+      '&fields=' + encodeURIComponent('nextPageToken,files(id,name,mimeType,thumbnailLink,videoMediaMetadata(durationMillis))') +
+      '&supportsAllDrives=true&includeItemsFromAllDrives=true&q=' + encodeURIComponent(q) + (tok ? '&pageToken=' + encodeURIComponent(tok) : '');
+    return fetch(url, { headers: { Authorization: 'Bearer ' + token } }).then(function (r) {
+      if (r.status === 401) throw new Error('انتهت الجلسة. سجّل الدخول من جديد.');
+      if (r.status === 404) throw new Error('لم أجد المجلد. تأكد من رابط المجلد وأنه متاح للحساب الذي سجّلت به.');
+      if (!r.ok) throw new Error('تعذّرت قراءة المجلد من Drive (رمز ' + r.status + ').');
+      return r.json();
+    }).then(function (d) {
+      (d.files || []).forEach(function (f) {
+        if (f.mimeType.indexOf('image/') === 0) { imgs.push({ id: f.id, name: f.name, thumb: f.thumbnailLink || '' }); return; }
+        node(f.id, f.name, f.mimeType === FOLDER_MIME, id, f.videoMediaMetadata ? Number(f.videoMediaMetadata.durationMillis) : 0);
+        ids.push(f.id);
+      });
+      return d.nextPageToken ? page(d.nextPageToken) : ids;
+    });
+  }
+  nd.loading = page().then(function (a) { nd.kids = a; nd.images = imgs; nd.loading = null; return a; }, function (e) { nd.loading = null; throw e; });
+  return nd.loading;
+}
+function crawl() {
+  var gen = ++crawlGen, q = [rootKey], active = 0; crawling = true; fatal = '';
+  function next() {
+    if (gen !== crawlGen) return;
+    while (active < 4 && q.length) (function (id) {
+      active++;
+      loadKids(id).then(function (k) { k.forEach(function (c) { if (nodes[c].folder) q.push(c); }); })
+        .catch(function (e) { if (id === rootKey) fatal = e.message; else nodes[id].kids = []; })
+        .then(function () { active--; schedule(); next(); });
+    })(q.shift());
+    if (!active && !q.length) { crawling = false; schedule(); }
+  }
+  next();
+}
+function schedule() { clearTimeout(timer); timer = setTimeout(render, 120); }
+
+/* ===== مساعدات ===== */
+function kids(id) { return (nodes[id].kids || []).map(function (k) { return nodes[k]; }); }
+function trail(id) { var a = [], n = nodes[id]; while (n && n.id !== rootKey) { a.unshift(n); n = nodes[n.parent]; } return a; }
+function where(n) { return trail(n.parent).map(function (x) { return x.name; }).join(' › '); }
+function summary(n) {
+  if (!n.folder) return fmt(n.dur);
+  if (!n.kids) return '';
+  var v = 0, f = 0; kids(n.id).forEach(function (k) { if (k.folder) f++; else v++; });
+  return v ? v + ' فيديو' : (f ? f + ' مجلد' : 'فارغ');
+}
+function recentKey() { return demo ? 'mk_recent_demo' : 'mk_recent'; }
+function recent() { try { return JSON.parse(store(recentKey()) || '[]'); } catch (e) { return []; } }
+function remember(v) {
+  var a = recent().filter(function (x) { return x.id !== v.id; });
+  a.unshift({ id: v.id, name: v.name, parent: v.parent, dur: v.dur }); store(recentKey(), JSON.stringify(a.slice(0, 12)));
+}
+function open(n) {
+  if (n.folder) { view = 'folder'; cur = n.id; query = ''; $('q').value = ''; render(); window.scrollTo(0, 0); return; }
+  var sib = nodes[n.parent] && nodes[n.parent].kids ? kids(n.parent).filter(function (k) { return !k.folder; }) : [n];
+  queue = sib; play(Math.max(0, sib.indexOf(n)));
+}
+
+/* ===== العرض ===== */
+var blobs = {};
+function poster(n) {
+  var imgs, base;
+  if (n.folder) { imgs = n.images || []; return imgs.filter(function (i) { return /^(poster|cover|folder|صور|غلاف)/i.test(i.name); })[0] || imgs[0] || null; }
+  imgs = (nodes[n.parent] && nodes[n.parent].images) || []; base = norm(clean(n.name));
+  return imgs.filter(function (i) { return norm(clean(i.name)) === base; })[0] || null;
+}
+function setPoster(im, p) {
+  if (blobs[p.id]) { im.src = blobs[p.id]; return; }
+  if (demo || !token) { im.src = p.thumb; return; }
+  var tried = false;
+  im.onerror = function () {
+    if (tried) { im.remove(); return; } tried = true;
+    fetch('https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(p.id) + '?alt=media&supportsAllDrives=true', { headers: { Authorization: 'Bearer ' + token } })
+      .then(function (r) { if (!r.ok) throw 0; return r.blob(); })
+      .then(function (bl) { blobs[p.id] = URL.createObjectURL(bl); im.src = blobs[p.id]; })
+      .catch(function () { im.remove(); });
+  };
+  if (p.thumb) im.src = p.thumb.replace(/=s\d+$/, '=s480'); else im.onerror();
+}
+function card(n) {
+  var b = el('button', 'card'); b.type = 'button';
+  var t = el('span', 'tile'), p = poster(n);
+  if (p) { var im = document.createElement('img'); im.alt = ''; im.loading = 'lazy'; im.referrerPolicy = 'no-referrer'; setPoster(im, p); t.appendChild(im); }
+  b.appendChild(t); b.appendChild(el('span', 'name', clean(n.name))); b.appendChild(el('span', 'meta', summary(n) || ' '));
+  b.onclick = function () { open(n); }; return b;
+}
+function row(box, title, items, more) {
+  if (!items.length) return;
+  var h = el('div', 'rowhead'); h.appendChild(el('h2', '', title));
+  if (more) { var m = el('button', '', 'عرض الكل'); m.type = 'button'; m.onclick = function () { open(more); }; h.appendChild(m); }
+  var r = el('div', 'row'); items.forEach(function (n) { r.appendChild(card(n)); });
+  box.appendChild(h); box.appendChild(r);
+}
+function videoRow(n, withPath) {
+  var b = el('button', 'video'); b.type = 'button';
+  var p = el('span', 'play'); p.appendChild(icon(n.folder ? 'M3 6h6l2 2h10v11H3z' : 'M8 5v14l11-7z', 18, !n.folder));
+  var t = el('span', 'txt'); t.appendChild(el('span', 'name', clean(n.name)));
+  if (withPath) { var w = where(n); if (w) t.appendChild(el('span', 'where', w)); }
+  b.appendChild(p); b.appendChild(t); b.appendChild(el('span', 'dur', n.folder ? summary(n) : fmt(n.dur)));
+  b.onclick = function () { open(n); }; return b;
+}
+var CAT = /^(عربي|انجليزي|اجنبي|تركي|كوري|هندي|ياباني|انمي|كرتون|اطفال|arabic|english|foreign|turkish|korean|anime|kids|cartoon)/;
+var SEASON = /(season|موسم|جزء|part|^s\d+)/;
+/* مجلد عمل (مسلسل أو فيلم) أم مجلد تصنيف (لغة مثلاً)؟ */
+function isTitle(f) {
+  if (CAT.test(norm(f.name))) return false;
+  var k = kids(f.id);
+  if (!k.length || (f.images && f.images.length)) return true;
+  if (k.some(function (c) { return !c.folder; })) return true;
+  return k.some(function (c) { return SEASON.test(norm(c.name)); });
+}
+function renderHome(box) {
+  if (fatal) { box.appendChild(el('div', 'state', fatal)); return; }
+  if (!nodes[rootKey].kids) { box.appendChild(el('div', 'state', 'جارٍ التحميل…')); return; }
+  var rec = recent().map(function (r) { return nodes[r.id] || { id: r.id, name: r.name, parent: r.parent, dur: r.dur, folder: false }; });
+  row(box, 'شاهدت مؤخراً', rec);
+  var any = false;
+  kids(rootKey).forEach(function (top) {
+    if (!top.folder) return;
+    var tk = kids(top.id), titles = tk.filter(function (k) { return !k.folder || (k.kids && isTitle(k)); });
+    if (titles.length) { row(box, top.name, titles, top); any = true; }
+    tk.forEach(function (sub) { if (sub.folder && sub.kids && sub.kids.length && !isTitle(sub)) { row(box, top.name + ' · ' + sub.name, kids(sub.id), sub); any = true; } });
+  });
+  var loose = kids(rootKey).filter(function (k) { return !k.folder; });
+  if (loose.length) { row(box, 'ملفات أخرى', loose); any = true; }
+  if (!any && !crawling) box.appendChild(el('div', 'state', 'لم أجد مجلدات أو ملفات فيديو في المجلد الرئيسي.'));
+}
+function renderSearch(box) {
+  var words = norm(query).split(/\s+/).filter(Boolean), hits = [];
+  Object.keys(nodes).forEach(function (id) {
+    var n = nodes[id]; if (id === rootKey) return;
+    var hay = norm(n.name); if (words.every(function (w) { return hay.indexOf(w) >= 0; })) hits.push(n);
+  });
+  hits.sort(function (a, b) { return (b.folder - a.folder) || a.name.localeCompare(b.name, 'ar', { numeric: true }); });
+  var h = el('div', 'rowhead'); h.appendChild(el('h2', '', 'نتائج البحث (' + hits.length + ')')); box.appendChild(h);
+  if (!hits.length) { box.appendChild(el('div', 'state', crawling ? 'لا نتائج حتى الآن، والفهرسة مستمرة.' : 'لا توجد نتائج. جرّب كلمة أقصر أو تهجئة أخرى.')); return; }
+  var l = el('div', 'list'); hits.slice(0, 80).forEach(function (n) { l.appendChild(videoRow(n, true)); }); box.appendChild(l);
+  if (hits.length > 80) box.appendChild(el('div', 'state', 'تظهر أول 80 نتيجة. أضف كلمة لتضييق البحث.'));
+}
+function renderFolder(box) {
+  var n = nodes[cur];
+  if (!n.kids) { box.appendChild(el('div', 'state', 'جارٍ التحميل…')); loadKids(cur).then(schedule, function (e) { n.kids = []; schedule(); }); return; }
+  var items = kids(cur), folders = items.filter(function (x) { return x.folder; }), videos = items.filter(function (x) { return !x.folder; });
+  if (!items.length) { box.appendChild(el('div', 'state', 'هذا المجلد لا يحتوي مجلدات أو ملفات فيديو.')); return; }
+  if (folders.length) {
+    box.appendChild(el('h3', '', 'المجلدات (' + folders.length + ')'));
+    var g = el('div', 'grid');
+    folders.forEach(function (f) { g.appendChild(card(f)); });
+    box.appendChild(g);
+  }
+  if (videos.length) {
+    box.appendChild(el('h3', '', 'للمشاهدة (' + videos.length + ')'));
+    var l = el('div', 'list'); videos.forEach(function (v) { l.appendChild(videoRow(v, false)); }); box.appendChild(l);
+  }
+}
+function render() {
+  if ($('library').hidden) return;
+  var box = $('content'), keep = {};
+  box.querySelectorAll('.row').forEach(function (r, i) { keep[i] = r.scrollLeft; });
+  box.textContent = '';
+  var st = $('status'); st.hidden = !crawling; if (crawling) st.textContent = 'جارٍ فهرسة المكتبة… (' + (Object.keys(nodes).length - 1) + ' عنصراً حتى الآن)';
+  var c = $('crumbs'); c.textContent = ''; c.hidden = !(view === 'folder' && !query);
+  if (query) renderSearch(box);
+  else if (view === 'folder') {
+    var hb = el('button', '', 'الرئيسية'); hb.type = 'button'; hb.onclick = goHome; c.appendChild(hb);
+    trail(cur).forEach(function (p, i, a) {
+      c.appendChild(el('span', '', '‹'));
+      if (i === a.length - 1) c.appendChild(el('span', 'here', p.name));
+      else { var b = el('button', '', p.name); b.type = 'button'; b.onclick = function () { open(p); }; c.appendChild(b); }
+    });
+    renderFolder(box);
+  } else renderHome(box);
+  box.querySelectorAll('.row').forEach(function (r, i) { if (keep[i]) r.scrollLeft = keep[i]; });
+}
+function goHome() { view = 'home'; query = ''; $('q').value = ''; render(); window.scrollTo(0, 0); }
+function openLibrary() {
+  $('signin').hidden = true; $('library').hidden = false; $('demoBadge').hidden = !demo;
+  nodes = {}; rootKey = demo ? 'demo-root' : rootId; node(rootKey, 'الرئيسية', true, null);
+  view = 'home'; query = ''; $('q').value = '';
+  if (demo) { nodes[rootKey].kids = []; demoTree(); crawling = false; fatal = ''; crawlGen++; render(); } else { crawl(); render(); }
+}
+$('q').oninput = function () { query = this.value.trim(); render(); };
+$('btnHome').onclick = goHome;
+
+/* ===== المشغّل ===== */
+function play(i) {
+  qIndex = i; var v = queue[i], st = $('stage'); st.textContent = '';
+  $('ptitle').textContent = clean(v.name);
+  $('btnPrev').disabled = i === 0; $('btnNext').disabled = i === queue.length - 1;
+  remember(v);
+  if (demo) {
+    st.appendChild(el('div', 'demo', 'هذه معاينة تجريبية. بعد ربط مجلدك ورفع الصفحة على موقعك يظهر هنا مشغّل Google Drive ويبدأ البث مباشرة.'));
+    $('openDrive').hidden = true;
+  } else {
+    var f = document.createElement('iframe');
+    f.src = 'https://drive.google.com/file/d/' + encodeURIComponent(v.id) + '/preview';
+    f.allow = 'autoplay; fullscreen'; f.allowFullscreen = true; f.title = clean(v.name);
+    st.appendChild(f);
+    $('openDrive').hidden = false; $('openDrive').href = 'https://drive.google.com/file/d/' + encodeURIComponent(v.id) + '/view';
+  }
+  $('player').hidden = false;
+}
+$('btnClose').onclick = function () { $('stage').textContent = ''; $('player').hidden = true; render(); };
+$('btnPrev').onclick = function () { if (qIndex > 0) play(qIndex - 1); };
+$('btnNext').onclick = function () { if (qIndex < queue.length - 1) play(qIndex + 1); };
+
+/* ===== تسجيل الدخول عبر Google ===== */
+function loadGoogle() {
+  return new Promise(function (ok, fail) {
+    if (window.google && google.accounts && google.accounts.oauth2) return ok();
+    var s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.async = true;
+    s.onload = function () { ok(); }; s.onerror = function () { fail(); };
+    document.head.appendChild(s);
+  });
+}
+$('btnSignin').onclick = function () {
+  showMsg('');
+  if (!clientId || !rootId) { $('setup').open = true; showMsg('أكمل «إعداد الربط» أولاً: معرّف العميل ورابط المجلد الرئيسي.'); return; }
+  loadGoogle().then(function () {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: clientId, scope: SCOPE,
+      callback: function (r) {
+        if (r && r.access_token) { token = r.access_token; demo = false; openLibrary(); }
+        else showMsg('لم يكتمل تسجيل الدخول. حاول مرة أخرى.');
+      },
+      error_callback: function () { showMsg('أُغلقت نافذة Google قبل إتمام الدخول، أو منعها المتصفح.'); }
+    });
+    tokenClient.requestAccessToken();
+  }).catch(function () {
+    showMsg('تعذّر فتح تسجيل الدخول من هذه المعاينة. يعمل بعد رفع الصفحة على موقعك (مثل GitHub Pages). جرّب الآن «عرض تجريبي».');
+  });
+};
+$('btnDemo').onclick = function () { demo = true; token = null; openLibrary(); };
+$('btnSave').onclick = function () {
+  clientId = $('inClient').value.trim(); rootId = folderId($('inFolder').value);
+  store('mk_client', clientId); store('mk_folder', $('inFolder').value.trim());
+  showMsg(clientId && rootId ? 'تم حفظ الإعداد على هذا المتصفح. اضغط تسجيل الدخول.' : 'أدخل معرّف العميل ورابط المجلد.');
+};
+$('btnRefresh').onclick = function () { openLibrary(); };
+$('btnSignout').onclick = function () {
+  try { if (token && window.google) google.accounts.oauth2.revoke(token, function () {}); } catch (e) {}
+  token = null; demo = false; nodes = {}; crawlGen++;
+  $('library').hidden = true; $('signin').hidden = false; showMsg('');
+};
+</script>
+</body>
+</html>
