@@ -134,7 +134,7 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 
 <script>
 /* ===== الإعداد: يمكن كتابة القيم هنا مباشرة بدل إدخالها من الصفحة ===== */
-var CONFIG = { clientId: '', folder: '1DKkSPFMiBHOxoasN_sQkC9IDAtRTVZ8O' };
+var CONFIG = { clientId: '27864551624-00o9lnhs9l769fb3n2lpic1gt8d5dpv6.apps.googleusercontent.com', folder: '1DKkSPFMiBHOxoasN_sQkC9IDAtRTVZ8O' };
 var SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
 var FOLDER_MIME = 'application/vnd.google-apps.folder';
 var TILE = ['#3A2F3F', '#2F3B35', '#40362A', '#2A3441', '#3B2E2E', '#2E3340'];
@@ -157,6 +157,7 @@ function hue(t) { var h = 0; for (var i = 0; i < t.length; i++) h = (h * 31 + t.
 var clientId = CONFIG.clientId || store('mk_client') || '';
 var rootId = folderId(CONFIG.folder || store('mk_folder') || '');
 $('inClient').value = clientId; $('inFolder').value = CONFIG.folder || store('mk_folder') || '';
+if (CONFIG.clientId && CONFIG.folder) { $('setup').hidden = true; $('btnDemo').hidden = true; }
 
 var token = null, demo = false, tokenClient = null;
 var nodes = {}, rootKey = '', crawlGen = 0, crawling = false, fatal = '';
