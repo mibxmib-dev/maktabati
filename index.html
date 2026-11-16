@@ -199,7 +199,7 @@ function loadKids(id) {
       '&fields=' + encodeURIComponent('nextPageToken,files(id,name,mimeType,thumbnailLink,videoMediaMetadata(durationMillis))') +
       '&supportsAllDrives=true&includeItemsFromAllDrives=true&q=' + encodeURIComponent(q) + (tok ? '&pageToken=' + encodeURIComponent(tok) : '');
     return fetch(url, { headers: { Authorization: 'Bearer ' + token } }).then(function (r) {
-      if (r.status === 401) throw new Error('انتهت الجلسة. سجّل الدخول من جديد.');
+      if (r.status === 401) { sset('mk_token', null); throw new Error('انتهت الجلسة. اضغط «تسجيل الخروج» ثم سجّل الدخول من جديد.'); }
       if (r.status === 404) throw new Error('لم أجد المجلد. تأكد من رابط المجلد وأنه متاح للحساب الذي سجّلت به.');
       if (!r.ok) throw new Error('تعذّرت قراءة المجلد من Drive (رمز ' + r.status + ').');
       return r.json();
@@ -401,49 +401,46 @@ $('btnClose').onclick = function () { $('stage').textContent = ''; $('player').h
 $('btnPrev').onclick = function () { if (qIndex > 0) play(qIndex - 1); };
 $('btnNext').onclick = function () { if (qIndex < queue.length - 1) play(qIndex + 1); };
 
-/* ===== تسجيل الدخول عبر Google ===== */
-var gsiState = 'loading';
-function initClient() {
-  if (tokenClient || !clientId || !(window.google && google.accounts && google.accounts.oauth2)) return;
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: clientId, scope: SCOPE,
-    callback: function (r) {
-      if (r && r.access_token) { token = r.access_token; demo = false; openLibrary(); }
-      else showMsg('لم يكتمل تسجيل الدخول' + (r && r.error ? ' (' + r.error + ')' : '') + '. حاول مرة أخرى.');
-    },
-    error_callback: function (e) {
-      var t = e && e.type;
-      if (t === 'popup_failed_to_open') showMsg('منع المتصفح نافذة Google. اسمح بالنوافذ المنبثقة لهذا الموقع ثم اضغط الزر مرة أخرى.');
-      else if (t === 'popup_closed') showMsg('أُغلقت نافذة Google قبل إتمام الدخول.');
-      else showMsg('تعذّر تسجيل الدخول' + (t ? ' (' + t + ')' : '') + '.');
-    }
-  });
-}
-(function () {
-  var s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.async = true;
-  s.onload = function () { gsiState = 'ready'; try { initClient(); } catch (e) { gsiState = 'error:' + e.message; } };
-  s.onerror = function () { gsiState = 'blocked'; };
-  document.head.appendChild(s);
-})();
+/* ===== تسجيل الدخول عبر Google (تحويل للصفحة الرسمية ثم العودة، بلا نوافذ منبثقة) ===== */
+var REDIRECT = 'https://mibxmib-dev.github.io/maktabati/';
+function sget(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
+function sset(k, v) { try { if (v == null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v); } catch (e) {} }
+function onSite() { return /github\.io$/.test(location.hostname); }
 $('btnSignin').onclick = function () {
   showMsg('');
   if (!clientId || !rootId) { $('setup').hidden = false; $('setup').open = true; showMsg('أكمل «إعداد الربط» أولاً: معرّف العميل ورابط المجلد الرئيسي.'); return; }
-  if (!/github\.io$/.test(location.hostname) && location.protocol !== 'file:') { showMsg('تسجيل الدخول لا يعمل في هذه المعاينة. افتح الموقع: https://mibxmib-dev.github.io/maktabati/'); return; }
-  if (gsiState === 'loading') { showMsg('جارٍ تجهيز تسجيل الدخول، اضغط الزر مرة أخرى بعد ثانيتين.'); return; }
-  if (gsiState === 'blocked') { showMsg('تعذّر تحميل خدمة Google. تأكد من الاتصال، وأوقف مانع الإعلانات أو DNS الخاص إن وجد، ثم حدّث الصفحة.'); return; }
-  if (gsiState.indexOf('error:') === 0) { showMsg('خطأ في تجهيز الدخول (' + gsiState.slice(6) + ').'); return; }
-  try { initClient(); tokenClient.requestAccessToken(); }
-  catch (e) { showMsg('خطأ في تسجيل الدخول (' + (e && e.message) + ').'); }
+  if (!onSite()) { showMsg('تسجيل الدخول لا يعمل في هذه المعاينة. افتح الموقع: ' + REDIRECT); return; }
+  var state = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  sset('mk_state', state);
+  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + [
+    'client_id=' + encodeURIComponent(clientId), 'redirect_uri=' + encodeURIComponent(REDIRECT),
+    'response_type=token', 'scope=' + encodeURIComponent(SCOPE), 'include_granted_scopes=true', 'state=' + encodeURIComponent(state)
+  ].join('&');
 };
+function useToken(t, exp) { token = t; demo = false; sset('mk_token', t); sset('mk_exp', String(exp)); openLibrary(); }
+(function resume() {
+  var h = location.hash.replace(/^#/, '');
+  if (/(^|&)(access_token|error)=/.test(h)) {
+    var p = {}; h.split('&').forEach(function (kv) { var i = kv.indexOf('='); p[decodeURIComponent(kv.slice(0, i))] = decodeURIComponent(kv.slice(i + 1)); });
+    try { history.replaceState(null, '', location.pathname); } catch (e) { location.hash = ''; }
+    if (p.error) { showMsg(p.error === 'access_denied' ? 'لم تكتمل الموافقة في صفحة Google. إن كان حسابك غير مضاف كمستخدم تجريبي فأضفه ثم أعد المحاولة.' : 'رفض Google الدخول (' + p.error + ').'); return; }
+    if (p.state !== sget('mk_state')) { showMsg('انتهت محاولة الدخول. اضغط الزر مرة أخرى.'); return; }
+    sset('mk_state', null);
+    useToken(p.access_token, Date.now() + (Number(p.expires_in) || 3600) * 1000 - 60000); return;
+  }
+  var t = sget('mk_token'), e = Number(sget('mk_exp') || 0);
+  if (t && e > Date.now()) { token = t; demo = false; openLibrary(); }
+})();
 $('btnDemo').onclick = function () { demo = true; token = null; openLibrary(); };
 $('btnSave').onclick = function () {
-  tokenClient = null; clientId = $('inClient').value.trim(); rootId = folderId($('inFolder').value);
+  clientId = $('inClient').value.trim(); rootId = folderId($('inFolder').value);
   store('mk_client', clientId); store('mk_folder', $('inFolder').value.trim());
   showMsg(clientId && rootId ? 'تم حفظ الإعداد على هذا المتصفح. اضغط تسجيل الدخول.' : 'أدخل معرّف العميل ورابط المجلد.');
 };
 $('btnRefresh').onclick = function () { openLibrary(); };
 $('btnSignout').onclick = function () {
-  try { if (token && window.google) google.accounts.oauth2.revoke(token, function () {}); } catch (e) {}
+  try { if (token) fetch('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(token), { method: 'POST' }).catch(function () {}); } catch (e) {}
+  sset('mk_token', null); sset('mk_exp', null);
   token = null; demo = false; nodes = {}; crawlGen++;
   $('library').hidden = true; $('signin').hidden = false; showMsg('');
 };
