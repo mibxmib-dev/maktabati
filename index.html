@@ -343,6 +343,19 @@ function icon(path, size, fill) {
 }
 function fmt(ms) { if (!ms) return ''; var m = Math.round(ms / 60000), h = Math.floor(m / 60); return h ? h + ':' + String(m % 60).padStart(2, '0') + ' س' : m + ' د'; }
 function clean(n) { return n.replace(/\.[a-z0-9]{2,4}$/i, ''); }
+/* قراءة رقم الموسم والحلقة من اسم الملف، مثل: صائدو الأشباح S03E01.480p.mkv */
+function epInfo(name) {
+  var b = clean(name), m = b.match(/S(\d{1,2})[\s._-]*E(\d{1,3})/i) || b.match(/(?:^|[\s._-])(\d{1,2})x(\d{1,3})(?:$|[\s._-])/i);
+  if (m) return { s: +m[1], e: +m[2] };
+  m = b.match(/(?:\bEP?|Episode|الحلقة|حلقة)[\s._-]*(\d{1,3})/i);
+  return m ? { s: 0, e: +m[1] } : null;
+}
+/* تنظيف الاسم من علامات الجودة والترميز */
+function tidy(t) {
+  return t.replace(/[._]+/g, ' ')
+    .replace(/\b(\d{3,4}p|4k|uhd|web[\s-]?dl|webrip|hdtv|hdrip|bluray|blu[\s-]?ray|brrip|dvdrip|x26[45]|h\s?26[45]|hevc|aac\d?(\s?\d)?|ac3|ddp?\d?(\s?\d)?|10bit|dubbed|subbed)\b/gi, '')
+    .replace(/[\[\(]\s*[\]\)]/g, '').replace(/\s*-\s*$/, '').replace(/\s{2,}/g, ' ').trim();
+}
 function norm(t) { return (t || '').toLowerCase().replace(/[ً-ْـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/[._\-]+/g, ' ').trim(); }
 function hue(t) { var h = 0; for (var i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0; return TILE[h % TILE.length]; }
 
@@ -466,6 +479,21 @@ function summary(n) {
 
 function eps_(n) { return n === 1 ? 'حلقة واحدة' : n === 2 ? 'حلقتان' : n <= 10 ? n + ' حلقات' : n + ' حلقة'; }
 function seas_(n) { return n === 2 ? 'موسمان' : n <= 10 ? n + ' مواسم' : n + ' موسماً'; }
+/* الاسم المعروض: داخل مسلسل «الحلقة 1»، وغير ذلك اسم نظيف */
+function disp(v) {
+  if (v.folder) return v.name;
+  var t = titleOf(v), i = epInfo(v.name);
+  if (t !== v && i) return 'الحلقة ' + i.e;
+  /* حلقة بلا رقم في اسمها: نرقّمها حسب ترتيبها في موسمها */
+  if (t !== v && titleKind(t) === 'series') { var g = groups(t).filter(function (x) { return x.eps.indexOf(v) >= 0; })[0]; if (g) return 'الحلقة ' + (g.eps.indexOf(v) + 1); }
+  return tidy(clean(v.name)) || clean(v.name);
+}
+function dispLong(v) {
+  var i = epInfo(v.name), t = titleOf(v);
+  if (t !== v && i) return (i.s ? 'الموسم ' + i.s + ' · ' : '') + 'الحلقة ' + i.e;
+  if (t !== v && titleKind(t) === 'series') { var gs = groups(t), g = gs.filter(function (x) { return x.eps.indexOf(v) >= 0; })[0]; if (g) return (gs.length > 1 ? g.name + ' · ' : '') + disp(v); }
+  return disp(v);
+}
 /* ===== التصنيف: شركة ← مسلسلات/أفلام ← عمل ← مواسم ← حلقات ===== */
 var SERIES_RE = /^(مسلسلات|series|shows|tv shows)$/, MOVIE_RE = /^(افلام|movies|films)$/;
 var CAT = /^(مسلسلات|افلام|عربي|انجليزي|اجنبي|تركي|كوري|هندي|ياباني|انمي|كرتون|اطفال|series|shows|movies|films|arabic|english|foreign|turkish|korean|anime|kids|cartoon)$/;
@@ -504,11 +532,18 @@ function titleKind(t) {
   while (x && x.id !== rootKey) { var b = bucketKind(x); if (b) return b; x = nodes[x.parent]; }
   var g = groups(t); return g.length > 1 || allEpisodes(t).length > 1 ? 'series' : 'movie';
 }
+function epSort(a, b) { var x = epInfo(a.name), y = epInfo(b.name); return x && y ? (x.s - y.s) || (x.e - y.e) : 0; }
 function groups(t) {
   if (!t.folder) return [{ id: t.id, name: '', eps: [t] }];
   var k = kids(t.id), out = [];
-  k.filter(function (c) { return c.folder; }).forEach(function (c) { var e = kids(c.id).filter(function (v) { return !v.folder; }); if (e.length) out.push({ id: c.id, name: c.name, eps: e }); });
-  var loose = k.filter(function (c) { return !c.folder; });
+  k.filter(function (c) { return c.folder; }).forEach(function (c) { var e = kids(c.id).filter(function (v) { return !v.folder; }).sort(epSort); if (e.length) out.push({ id: c.id, name: c.name, eps: e }); });
+  var loose = k.filter(function (c) { return !c.folder; }).sort(epSort);
+  if (loose.length && !out.length) {
+    /* حلقات من أكثر من موسم في مجلد واحد: نقسمها حسب رقم الموسم في الاسم */
+    var bySeason = {}, order = [];
+    loose.forEach(function (v) { var i = epInfo(v.name), key = i && i.s ? i.s : 0; if (!bySeason[key]) { bySeason[key] = []; order.push(key); } bySeason[key].push(v); });
+    if (order.length > 1) { order.sort(function (a, b) { return a - b; }).forEach(function (key) { out.push({ id: t.id + ':s' + key, name: key ? 'الموسم ' + key : 'أخرى', eps: bySeason[key] }); }); return out; }
+  }
   if (loose.length) out[out.length ? 'push' : 'unshift']({ id: t.id, name: out.length ? 'أخرى' : 'الحلقات', eps: loose });
   return out;
 }
@@ -610,11 +645,11 @@ function card(n, sub) {
   var t = el('span', 'tile'), p = poster(n);
   if (p) t.appendChild(img(p));
   if (isFav(n.id)) { var f = el('span', 'favdot'); f.appendChild(icon(HEART, 14, true)); t.appendChild(f); }
-  b.appendChild(t); b.appendChild(el('span', 'name', clean(n.name))); b.appendChild(el('span', 'meta', sub || summary(n) || ' '));
+  b.appendChild(t); b.appendChild(el('span', 'name', disp(n))); b.appendChild(el('span', 'meta', sub || summary(n) || ' '));
   b.onclick = function () { open(n); }; return b;
 }
 function contCard(t) {
-  var r = resumePoint(t), b = card(t, t.folder && titleKind(t) === 'series' ? (r.next ? 'التالي: ' : 'تابع: ') + clean(r.ep.name) : 'تابع المشاهدة');
+  var r = resumePoint(t), b = card(t, t.folder && titleKind(t) === 'series' ? (r.next ? 'التالي: ' : 'تابع: ') + disp(r.ep) : 'تابع المشاهدة');
   var pl = el('span', 'play mini over'); pl.appendChild(icon('M8 5v14l11-7z', 14, true)); b.querySelector('.tile').appendChild(pl);
   var pb = progressBar(r.ep); if (pb) b.querySelector('.tile').appendChild(pb);
   b.onclick = function () { playEpisode(r.ep); }; return b;
@@ -635,7 +670,7 @@ function videoRow(n, withPath) {
     var pl = el('span', 'play mini'); pl.appendChild(icon('M8 5v14l11-7z', 14, true)); p.appendChild(pl);
     var pg = progressBar(n); if (pg) p.appendChild(pg);
   } else { p = el('span', 'play'); p.appendChild(icon('M3 6h6l2 2h10v11H3z', 18)); }
-  var tx = el('span', 'txt'); tx.appendChild(el('span', 'name', clean(n.name)));
+  var tx = el('span', 'txt'); tx.appendChild(el('span', 'name', withPath ? dispLong(n) : disp(n)));
   if (withPath) { var w = where(n); if (w) tx.appendChild(el('span', 'where', w)); }
   if (!n.folder && d[n.id]) { var ok = el('span', 'stat seen'); ok.appendChild(icon(CHECK, 14)); ok.appendChild(document.createTextNode('شاهدتها')); tx.appendChild(ok); b.classList.add('watched'); }
   else if (!n.folder && h && h.v === n.id) { tx.appendChild(el('span', 'stat now', 'آخر ما شاهدته')); b.classList.add('current'); }
@@ -778,7 +813,7 @@ function renderTitle(box, t) {
   if (r.ep) {
     var pb = el('button', 'btn primary'); pb.type = 'button'; pb.appendChild(icon('M8 5v14l11-7z', 18, true));
     var at = posOf(r.ep), from = at ? ' من ' + clock(at.t) : '';
-    pb.appendChild(document.createTextNode(kind === 'series' ? (r.started ? (r.next ? 'شاهد التالي: ' : 'تابع: ') + clean(r.ep.name) + from : 'شاهد ' + clean(r.ep.name)) : (at ? 'تابع' + from : r.started ? 'تابع المشاهدة' : 'تشغيل')));
+    pb.appendChild(document.createTextNode(kind === 'series' ? (r.started ? (r.next ? 'شاهد التالي: ' : 'تابع: ') + disp(r.ep) + from : 'شاهد ' + disp(r.ep)) : (at ? 'تابع' + from : r.started ? 'تابع المشاهدة' : 'تشغيل')));
     pb.onclick = function () { playEpisode(r.ep); }; acts.appendChild(pb);
   }
   var on = isFav(t.id), fb = el('button', 'btn favbtn'); fb.type = 'button'; fb.setAttribute('aria-pressed', String(on));
@@ -803,7 +838,7 @@ function vcard(v, wide) {
   if (v.dur) th.appendChild(el('span', 'vdur', fmt(v.dur)));
   if (done()[v.id]) { var ok = el('span', 'seenmark'); ok.appendChild(icon(CHECK, 12)); th.appendChild(ok); }
   var pg = progressBar(v); if (pg) th.appendChild(pg);
-  b.appendChild(th); b.appendChild(el('span', 'vname', clean(v.name)));
+  b.appendChild(th); b.appendChild(el('span', 'vname', disp(v)));
   var cr = ytCreator(v); if (cr) b.appendChild(el('span', 'vmeta', cr.name));
   b.onclick = function () { ytPlay(v); }; return b;
 }
@@ -913,7 +948,7 @@ function driveFrame(v, st, note) {
   st.textContent = ''; curVideo = null;
   var f = document.createElement('iframe');
   f.src = 'https://drive.google.com/file/d/' + encodeURIComponent(v.id) + '/preview';
-  f.allow = 'autoplay; fullscreen'; f.allowFullscreen = true; f.title = clean(v.name);
+  f.allow = 'autoplay; fullscreen'; f.allowFullscreen = true; f.title = disp(v);
   st.appendChild(f);
   if (note) { var n = el('div', 'pnote', note); st.appendChild(n); setTimeout(function () { n.remove(); }, 6000); }
 }
@@ -952,7 +987,7 @@ function startVideo(v, st) {
 function upNext() {
   if (qIndex >= queue.length - 1) return;
   var st = $('stage'), nx = queue[qIndex + 1], n = 5, box = el('div', 'resume');
-  box.appendChild(el('p', 'rtitle', 'التالي: ' + clean(nx.name)));
+  box.appendChild(el('p', 'rtitle', 'التالي: ' + dispLong(nx)));
   var cnt = el('p', 'rsub', 'يبدأ بعد ' + n + ' ثوانٍ'); box.appendChild(cnt);
   var acts = el('div', 'racts');
   var b1 = el('button', 'btn primary', 'شغّل الآن'); b1.type = 'button';
@@ -969,7 +1004,7 @@ function play(i) {
   qIndex = i; var v = queue[i], st = $('stage'), t = titleOf(v), d = done();
   st.textContent = '';
   $('pseries').textContent = t !== v ? t.name : '';
-  $('ptitle').textContent = clean(v.name);
+  $('ptitle').textContent = dispLong(v);
   var multi = queue.length > 1;
   $('btnPrev').hidden = $('btnNext').hidden = !multi; $('pstrip').hidden = !multi;
   $('btnPrev').disabled = i === 0; $('btnNext').disabled = i === queue.length - 1;
@@ -982,7 +1017,7 @@ function play(i) {
     var b = el('button', 'pep'); b.type = 'button'; if (k === i) b.setAttribute('aria-current', 'true');
     var th = el('span', 'vthumb'), pic = poster(e); if (pic) th.appendChild(img(pic));
     if (d[e.id]) { var ok = el('span', 'seenmark'); ok.appendChild(icon(CHECK, 12)); th.appendChild(ok); }
-    b.appendChild(th); b.appendChild(el('span', 'pepname', clean(e.name)));
+    b.appendChild(th); b.appendChild(el('span', 'pepname', disp(e)));
     b.onclick = function () { play(k); }; strip.appendChild(b);
   });
   $('openDrive').hidden = demo; if (!demo) $('openDrive').href = 'https://drive.google.com/file/d/' + encodeURIComponent(v.id) + '/view';
