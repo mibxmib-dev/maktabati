@@ -199,6 +199,15 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 .progline.big{position:relative;width:min(320px,80%);height:6px;border-radius:3px;overflow:hidden}
 .pnote{position:absolute;top:10px;left:10px;right:10px;z-index:3;background:rgba(18,10,10,.9);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;color:var(--text)}
 
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:40;max-width:min(520px,calc(100% - 32px));background:var(--text);color:var(--ground);padding:12px 16px;border-radius:12px;font-size:14px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+#pDl.on{color:var(--accent)}
+.dlpct{font-size:12px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+.dlrow{display:flex;align-items:center;gap:6px}
+.dlrow .video{flex:1;min-width:0}
+.dlinfo{margin:0 0 6px;color:var(--muted);font-size:13px}
+.dlbar{display:block;width:100%;margin-top:6px}
+.dlbar i{position:absolute;top:0;bottom:0;right:0;width:0;background:var(--accent)}
+
 /* يوتيوب */
 .creators{gap:14px}
 .creator{flex:0 0 92px;display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;padding:0;color:var(--text)}
@@ -279,6 +288,7 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
     <h1>home movie</h1>
     <p class="lead">أفلامك ومسلسلاتك في مكان واحد، تُعرض مباشرة من مجلدك.</p>
     <button class="btn primary google" id="btnSignin" type="button">الدخول بحساب Google</button>
+    <button class="btn" id="btnOffline" type="button" hidden>التحميلات (بدون إنترنت)</button>
     <button class="btn" id="btnDemo" type="button">عرض تجريبي ببيانات وهمية</button>
     <div class="msg" id="signinMsg" hidden></div>
     <p class="note">ينقلك الزر لصفحة Google الرسمية. الصفحة تقرأ ملفاتك فقط ولا تعدّل شيئاً.</p>
@@ -307,11 +317,13 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
   </main>
 </div>
 
+<div class="toast" id="toast" role="status" hidden></div>
 <div id="player" hidden>
   <div class="pbar">
     <button class="iconbtn" id="btnClose" type="button" aria-label="رجوع"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
     <div class="ptitle"><span class="pseries" id="pseries"></span><span id="ptitle"></span></div>
     <button class="iconbtn" id="pFav" type="button" aria-pressed="false" aria-label="أضف للمفضلة"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.6-9.2C1 8 3 4.5 6.6 4.5c2.1 0 3.6 1.1 5.4 3.1 1.8-2 3.3-3.1 5.4-3.1C21 4.5 23 8 21.6 11.3 19.5 15.9 12 20.5 12 20.5z"></path></svg></button>
+    <button class="iconbtn" id="pDl" type="button" aria-label="تحميل للمشاهدة بدون إنترنت"></button>
     <a id="openDrive" href="#" target="_blank" rel="noopener">فتح في Drive</a>
   </div>
   <div class="stage" id="stage"></div>
@@ -482,6 +494,7 @@ function eps_(n) { return n === 1 ? 'حلقة واحدة' : n === 2 ? 'حلقت�
 function seas_(n) { return n === 2 ? 'موسمان' : n <= 10 ? n + ' مواسم' : n + ' موسماً'; }
 /* الاسم المعروض: داخل مسلسل «الحلقة 1»، وغير ذلك اسم نظيف */
 function disp(v) {
+  if (v.label) return v.label;
   if (v.folder) return v.name;
   var t = titleOf(v), i = epInfo(v.name);
   if (t !== v && i) return 'الحلقة ' + i.e;
@@ -490,6 +503,7 @@ function disp(v) {
   return tidy(clean(v.name)) || clean(v.name);
 }
 function dispSeason(v) {
+  if (v.labelLong) return v.labelLong;
   var t = titleOf(v);
   if (t === v || !t.folder) return disp(v);
   var gs = groups(t);
@@ -519,6 +533,7 @@ function ytCreator(v) { var a = trail(v.parent); return a.length > 1 && YT_RE.te
 function videosUnder(f) { var out = []; (function walk(x) { kids(x.id).forEach(function (k) { if (k.folder) walk(k); else out.push(k); }); })(f); return out; }
 function isTitle(f) {
   if (!f || !f.folder || f.id === rootKey || !f.kids) return false;
+  if (offline) return /^t-/.test(f.id);
   if (inYT(f)) return false;
   /* مجلد في أول مستوى بلا فيديوهات مباشرة = قناة، حتى لو كانت فارغة */
   if (f.parent === rootKey && !kids(f.id).some(function (c) { return !c.folder; })) return false;
@@ -627,6 +642,128 @@ function playEpisode(v) {
   queue = i < 0 ? [v] : eps; play(i < 0 ? 0 : i);
 }
 
+/* ===== التحميل داخل التطبيق للمشاهدة بدون إنترنت ===== */
+var offline = false, DLA = {}, DLC = {}, dlTimer = 0;
+var IC_DL = 'M12 4v11M7 10l5 5 5-5M5 20h14', IC_TRASH = 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13';
+function dlKey(id) { return new URL('dl/' + id, location.href.split('#')[0].split('?')[0]).href; }
+function dlRecs() { return jget('dl', {}); }
+function isDl(id) { return !!dlRecs()[id]; }
+function mb(b) { return b >= 1073741824 ? (b / 1073741824).toFixed(1) + ' ج.ب' : Math.max(1, Math.round(b / 1048576)) + ' م.ب'; }
+function toast(t) { var x = $('toast'); x.textContent = t; x.hidden = false; clearTimeout(x._t); x._t = setTimeout(function () { x.hidden = true; }, 4000); }
+function dlTick() {
+  clearTimeout(dlTimer);
+  dlTimer = setTimeout(function () {
+    document.querySelectorAll('[data-dl]').forEach(function (e) {
+      var id = e.getAttribute('data-dl'), p = DLA[id];
+      if (p === undefined) return;
+      if (e.tagName === 'I') e.style.width = Math.round(p * 100) + '%'; else e.textContent = 'جارٍ التحميل ' + Math.round(p * 100) + '٪';
+    });
+    if (!$('player').hidden && queue[qIndex]) setDlButton(queue[qIndex]);
+  }, 150);
+}
+function saveRec(v, size) {
+  var t = titleOf(v), gs = t.folder ? groups(t) : [], g = gs.filter(function (x) { return x.eps.indexOf(v) >= 0; })[0], yt = inYT(v), cr = yt ? ytCreator(v) : null;
+  var a = dlRecs();
+  a[v.id] = { id: v.id, name: v.name, size: size, at: Date.now(), dur: v.dur || 0, label: disp(v), labelLong: dispSeason(v),
+    tid: yt ? v.parent : t.id, tname: yt ? (cr ? cr.name + ' · ' : '') + (nodes[v.parent] ? nodes[v.parent].name : '') : t.name,
+    gid: !yt && g && g.id !== t.id && gs.length > 1 ? g.id : '', gname: !yt && g && gs.length > 1 ? g.name : '' };
+  jset('dl', a);
+}
+async function download(v) {
+  if (!('caches' in window) || !window.ReadableStream) { toast('هذا المتصفح لا يدعم التحميل داخل التطبيق.'); return; }
+  if (DLA[v.id] !== undefined || isDl(v.id)) return;
+  if (!demo && !token) { toast('سجّل الدخول أولاً لتحميل الحلقات.'); return; }
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+  var ctl = new AbortController(); DLC[v.id] = ctl; DLA[v.id] = 0; dlTick(); render();
+  toast('بدأ تحميل ' + dispSeason(v));
+  try {
+    var url = demo ? 'assets/demo.mp4' : 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(v.id) + '?alt=media&supportsAllDrives=true';
+    var res = await fetch(url, demo ? { signal: ctl.signal } : { headers: { Authorization: 'Bearer ' + token }, signal: ctl.signal });
+    if (!res.ok) throw new Error(res.status === 403 ? 'التحميل غير مسموح لهذا الحساب، لأن تنزيل هذا الملف مقفل في Drive.' : res.status === 401 ? 'انتهت الجلسة. سجّل الدخول من جديد ثم حمّل.' : 'تعذّر التحميل (رمز ' + res.status + ').');
+    var total = Number(res.headers.get('Content-Length')) || 0, type = res.headers.get('Content-Type') || 'video/mp4';
+    var two = res.body.tee(), got = 0, c = await caches.open('hm-dl');
+    var put = c.put(dlKey(v.id), new Response(two[0], { headers: { 'Content-Type': type } }));
+    var rd = two[1].getReader();
+    for (;;) { var r = await rd.read(); if (r.done) break; got += r.value.length; DLA[v.id] = total ? Math.min(0.99, got / total) : 0; dlTick(); }
+    await put;
+    saveRec(v, got || total);
+    toast('اكتمل تحميل ' + dispSeason(v) + '. تقدر تشاهده بدون إنترنت.');
+  } catch (e) {
+    try { (await caches.open('hm-dl')).delete(dlKey(v.id)); } catch (er) {}
+    if (e.name !== 'AbortError') toast(e.name === 'QuotaExceededError' ? 'المساحة في الجهاز لا تكفي لهذا الملف.' : (e.message || 'تعذّر التحميل.'));
+  }
+  delete DLA[v.id]; delete DLC[v.id]; render(); if (!$('player').hidden && queue[qIndex]) setDlButton(queue[qIndex]);
+}
+async function dlDelete(id) {
+  if (DLC[id]) { DLC[id].abort(); return; }
+  try { (await caches.open('hm-dl')).delete(dlKey(id)); } catch (e) {}
+  var a = dlRecs(); delete a[id]; jset('dl', a); toast('حُذف التحميل من الجهاز.'); render();
+  if (offline && !Object.keys(a).length) $('btnSignout').onclick();
+}
+function setDlButton(v) {
+  var b = $('pDl'); b.textContent = ''; b.hidden = !v || offline;
+  if (!v) return;
+  if (DLA[v.id] !== undefined) { b.appendChild(el('span', 'dlpct', Math.round(DLA[v.id] * 100) + '٪')); b.setAttribute('aria-label', 'جارٍ التحميل، اضغط للإلغاء'); b.onclick = function () { dlDelete(v.id); }; return; }
+  if (isDl(v.id)) { b.appendChild(icon(CHECK, 22)); b.classList.add('on'); b.setAttribute('aria-label', 'محمّلة على الجهاز'); b.onclick = function () { toast('هذه الحلقة محمّلة. تحذفها من صفحة «التحميلات».'); }; return; }
+  b.classList.remove('on'); b.appendChild(icon(IC_DL, 22)); b.setAttribute('aria-label', 'تحميل للمشاهدة بدون إنترنت'); b.onclick = function () { download(v); };
+}
+function renderDownloads(box) {
+  var a = dlRecs(), recs = Object.keys(a).map(function (k) { return a[k]; });
+  var head = el('div', 'rowhead'); head.appendChild(el('h2', '', 'التحميلات')); box.appendChild(head);
+  var info = el('p', 'dlinfo', ''); box.appendChild(info);
+  if (navigator.storage && navigator.storage.estimate) navigator.storage.estimate().then(function (e) { if (e && e.quota) info.textContent = 'المساحة المستخدمة في هذا الجهاز: ' + mb(e.usage || 0) + ' من ' + mb(e.quota) + ' متاحة للتطبيق.'; }).catch(function () {});
+  Object.keys(DLA).forEach(function (id) {
+    if (a[id]) return; var v = nodes[id]; if (!v) return;
+    var r = el('div', 'dlrow'), b = el('div', 'video'), tx = el('span', 'txt');
+    tx.appendChild(el('span', 'name', dispLong(v))); var st = el('span', 'stat now', 'جارٍ التحميل…'); st.setAttribute('data-dl', id); tx.appendChild(st);
+    var bar = el('span', 'progline big dlbar'), f = el('i'); f.setAttribute('data-dl', id); bar.appendChild(f); tx.appendChild(bar);
+    b.appendChild(tx); r.appendChild(b);
+    var x = el('button', 'iconbtn'); x.type = 'button'; x.setAttribute('aria-label', 'إلغاء التحميل'); x.appendChild(icon('M6 6l12 12M18 6L6 18', 20)); x.onclick = function () { dlDelete(id); }; r.appendChild(x);
+    box.appendChild(r);
+  });
+  if (!recs.length && !Object.keys(DLA).length) { box.appendChild(el('div', 'state', 'ما حمّلت شيئاً بعد. افتح أي حلقة واضغط زر التحميل أعلى المشغّل، فتقدر تشاهدها بعدين بدون إنترنت.')); return; }
+  var byT = {}, order = [];
+  recs.sort(function (x, y) { return x.tname.localeCompare(y.tname, 'ar') || x.name.localeCompare(y.name, 'ar', { numeric: true }); })
+    .forEach(function (r) { if (!byT[r.tid]) { byT[r.tid] = []; order.push(r.tid); } byT[r.tid].push(r); });
+  order.forEach(function (tid) {
+    box.appendChild(el('h3', '', byT[tid][0].tname));
+    var l = el('div', 'list');
+    byT[tid].forEach(function (rec) {
+      var row = el('div', 'dlrow'), v = nodes[rec.id] || { id: rec.id, name: rec.name, folder: false, dur: rec.dur, label: rec.label, labelLong: rec.labelLong };
+      var b = el('button', 'video'); b.type = 'button';
+      var th = el('span', 'vthumb'), pic = !offline && nodes[rec.id] ? poster(nodes[rec.id]) : null; if (pic) th.appendChild(img(pic));
+      var pl = el('span', 'play mini'); pl.appendChild(icon('M8 5v14l11-7z', 14, true)); th.appendChild(pl);
+      var pg = progressBar(v); if (pg) th.appendChild(pg);
+      var tx = el('span', 'txt'); tx.appendChild(el('span', 'name', rec.labelLong || rec.label));
+      tx.appendChild(el('span', 'where', mb(rec.size) + (rec.dur ? ' · ' + fmt(rec.dur) : '')));
+      b.appendChild(th); b.appendChild(tx);
+      b.onclick = function () { var n = nodes[rec.id]; if (n) playEpisode(n); else toast('افتح التطبيق مع الإنترنت مرة لتحديث هذه الحلقة.'); };
+      var del = el('button', 'iconbtn'); del.type = 'button'; del.setAttribute('aria-label', 'حذف التحميل'); del.appendChild(icon(IC_TRASH, 20));
+      del.onclick = function () { dlDelete(rec.id); };
+      row.appendChild(b); row.appendChild(del); l.appendChild(row);
+    });
+    box.appendChild(l);
+  });
+}
+/* فتح التحميلات بدون إنترنت أو بدون تسجيل دخول */
+function openOffline() {
+  var a = dlRecs(), recs = Object.keys(a).map(function (k) { return a[k]; });
+  offline = true; demo = false; token = null; crawlGen++; crawling = false; fatal = '';
+  $('signin').hidden = true; $('library').hidden = false; $('demoBadge').hidden = true;
+  nodes = {}; rootKey = 'off-root'; node(rootKey, '', true, null).kids = ['off-ch'];
+  var ch = node('off-ch', 'التحميلات', true, rootKey); ch.kids = []; ch.images = [];
+  recs.forEach(function (r) {
+    var tid = 't-' + r.tid;
+    if (!nodes[tid]) { var t = node(tid, r.tname, true, 'off-ch'); t.kids = []; t.images = []; ch.kids.push(tid); }
+    var parent = tid;
+    if (r.gid) { var gid = 'g-' + r.gid; if (!nodes[gid]) { var g = node(gid, r.gname, true, tid); g.kids = []; g.images = []; nodes[tid].kids.push(gid); } parent = gid; }
+    var v = node(r.id, r.name, false, parent, r.dur); v.label = r.label; v.labelLong = r.labelLong; nodes[parent].kids.push(r.id);
+  });
+  view = 'home'; query = ''; $('q').value = ''; filter = 'dl'; render();
+}
+function offlineButton() { var n = Object.keys(jget('dl', {})).length; $('btnOffline').hidden = !n; if (n) $('btnOffline').textContent = 'التحميلات (' + n + ') — تعمل بدون إنترنت'; }
+$('btnOffline').onclick = function () { Intro.stop && Intro.stop(); openOffline(); };
+
 /* ===== العرض ===== */
 var blobs = {}, filter = 'all', seasonSel = {};
 var HEART = 'M12 20.5s-7.5-4.6-9.6-9.2C1 8 3 4.5 6.6 4.5c2.1 0 3.6 1.1 5.4 3.1 1.8-2 3.3-3.1 5.4-3.1C21 4.5 23 8 21.6 11.3 19.5 15.9 12 20.5 12 20.5z';
@@ -685,14 +822,17 @@ function videoRow(n, withPath) {
   if (withPath) { var w = where(n); if (w) tx.appendChild(el('span', 'where', w)); }
   if (!n.folder && d[n.id]) { var ok = el('span', 'stat seen'); ok.appendChild(icon(CHECK, 14)); ok.appendChild(document.createTextNode('شاهدتها')); tx.appendChild(ok); b.classList.add('watched'); }
   else if (!n.folder && h && h.v === n.id) { tx.appendChild(el('span', 'stat now', 'آخر ما شاهدته')); b.classList.add('current'); }
+  if (!n.folder && isDl(n.id)) { var dk = el('span', 'stat seen'); dk.appendChild(icon(IC_DL, 14)); dk.appendChild(document.createTextNode('محمّلة')); tx.appendChild(dk); }
+  else if (!n.folder && DLA[n.id] !== undefined) { var dg = el('span', 'stat now', 'جارٍ التحميل'); dg.setAttribute('data-dl', n.id); tx.appendChild(dg); }
   b.appendChild(p); b.appendChild(tx); b.appendChild(el('span', 'dur', n.folder ? summary(n) : fmt(n.dur)));
   b.onclick = function () { open(n); }; return b;
 }
 function chips(box) {
   var c = el('div', 'fchips'); c.setAttribute('role', 'group'); c.setAttribute('aria-label', 'تصفية');
-  [['all', 'الكل'], ['series', 'مسلسلات'], ['movie', 'أفلام'], ['fav', 'المفضلة']].forEach(function (o) {
+  (offline ? [['dl', 'التحميلات']] : [['all', 'الكل'], ['series', 'مسلسلات'], ['movie', 'أفلام'], ['fav', 'المفضلة'], ['dl', 'التحميلات']]).forEach(function (o) {
     var b = el('button', 'fchip', o[1]); b.type = 'button'; b.setAttribute('aria-pressed', String(filter === o[0]));
     if (o[0] === 'fav') b.insertBefore(icon(HEART, 14, filter === 'fav'), b.firstChild);
+    if (o[0] === 'dl') b.insertBefore(icon(IC_DL, 14), b.firstChild);
     b.onclick = function () { filter = o[0]; render(); }; c.appendChild(b);
   });
   box.appendChild(c);
@@ -759,8 +899,10 @@ function renderHome(box) {
   if (fatal) { box.appendChild(el('div', 'state', fatal)); return; }
   if (!nodes[rootKey].kids) { box.appendChild(el('div', 'state', 'جارٍ التحميل…')); return; }
   if (fatal) { box.appendChild(el('div', 'state', fatal)); return; }
+  if (offline) { chips(box); renderDownloads(box); return; }
   channels(box);
   chips(box);
+  if (filter === 'dl') { renderDownloads(box); return; }
   if (filter === 'fav') {
     var fv = favs().map(function (f) { return nodes[f.id]; }).filter(Boolean);
     box.appendChild(el('h2', 'ptitle2', 'المفضلة'));
@@ -946,6 +1088,7 @@ function render() {
 }
 function goHome() { view = 'home'; query = ''; $('q').value = ''; render(); window.scrollTo(0, 0); }
 function openLibrary() {
+  offline = false;
   $('signin').hidden = true; $('library').hidden = false; $('demoBadge').hidden = !demo;
   nodes = {}; rootKey = demo ? 'demo-root' : rootId; node(rootKey, 'الرئيسية', true, null);
   view = 'home'; query = ''; $('q').value = ''; filter = 'all';
@@ -956,7 +1099,8 @@ $('btnHome').onclick = goHome;
 
 /* ===== المشغّل ===== */
 var curVideo = null, nextTimer = 0;
-function canStream() { return !!(token && navigator.serviceWorker && navigator.serviceWorker.controller); }
+function swReady() { return !!(navigator.serviceWorker && navigator.serviceWorker.controller); }
+function canStream() { return !!(token && swReady()); }
 function driveFrame(v, st, note) {
   st.textContent = ''; curVideo = null;
   var f = document.createElement('iframe');
@@ -971,7 +1115,7 @@ function stopVideo() {
 }
 function startVideo(v, st) {
   var vd = document.createElement('video'); vd.controls = true; vd.playsInline = true; vd.preload = 'metadata';
-  vd.src = demo ? 'assets/demo.mp4' : 'stream/' + encodeURIComponent(v.id) + '?t=' + encodeURIComponent(token);
+  vd.src = demo ? 'assets/demo.mp4' : 'stream/' + encodeURIComponent(v.id) + '?t=' + encodeURIComponent(token || '');
   st.appendChild(vd); curVideo = { v: v, el: vd };
   var saved = 0, failed = false;
   vd.addEventListener('timeupdate', function () {
@@ -982,6 +1126,7 @@ function startVideo(v, st) {
   vd.addEventListener('ended', function () { markDone(v); var a = poses(); delete a[v.id]; jset('pos', a); upNext(); });
   vd.addEventListener('error', function () {
     if (failed || demo) return; failed = true;
+    if (offline) { st.textContent = ''; st.appendChild(el('div', 'demo', 'تعذّر تشغيل الملف المحمّل على هذا الجهاز.')); return; }
     driveFrame(v, st, 'تعذّر تشغيل الملف هنا، فانتقلت لمشغّل Google Drive. حفظ مكان التوقف لا يعمل في هذا المشغّل.');
   });
   var p = posOf(v);
@@ -1036,7 +1181,10 @@ function play(i) {
     b.onclick = function () { play(k); }; strip.appendChild(b);
   });
   $('openDrive').hidden = demo; if (!demo) $('openDrive').href = 'https://drive.google.com/file/d/' + encodeURIComponent(v.id) + '/view';
-  if (demo || canStream()) startVideo(v, st); else driveFrame(v, st);
+  setDlButton(v);
+  if (demo || canStream() || (isDl(v.id) && swReady())) startVideo(v, st);
+  else if (offline) st.appendChild(el('div', 'demo', 'هذه الحلقة غير محمّلة. اتصل بالإنترنت لمشاهدتها.'));
+  else driveFrame(v, st);
   $('player').hidden = false;
   var curEl = strip.querySelector('[aria-current]'); if (curEl) curEl.scrollIntoView({ block: 'nearest', inline: 'center' });
 }
@@ -1108,11 +1256,13 @@ $('btnSave').onclick = function () {
   store('mk_client', clientId); store('mk_folder', $('inFolder').value.trim());
   showMsg(clientId && rootId ? 'تم حفظ الإعداد على هذا المتصفح. اضغط تسجيل الدخول.' : 'أدخل معرّف العميل ورابط المجلد.');
 };
-$('btnRefresh').onclick = function () { openLibrary(); };
+$('btnRefresh').onclick = function () { if (offline) { if (navigator.onLine) $('btnSignout').onclick(); else toast('ما فيه إنترنت. تقدر تشاهد التحميلات فقط.'); return; } openLibrary(); };
+offlineButton();
+if (!navigator.onLine && Object.keys(jget('dl', {})).length && $('signin').hidden === false) setTimeout(function () { showMsg('ما فيه اتصال بالإنترنت. تقدر تشاهد الحلقات المحمّلة من زر «التحميلات».'); }, 300);
 $('btnSignout').onclick = function () {
   try { if (token) fetch('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(token), { method: 'POST' }).catch(function () {}); } catch (e) {}
   sset('mk_token', null); sset('mk_exp', null); $('who').hidden = true; $('who').textContent = '';
-  token = null; demo = false; nodes = {}; crawlGen++;
+  token = null; demo = false; offline = false; nodes = {}; crawlGen++; offlineButton();
   $('library').hidden = true; $('signin').hidden = false; showMsg('');
 };
 </script>
