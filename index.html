@@ -725,14 +725,14 @@ function renderHome(box) {
     row(box, 'تابع المشاهدة', continueList(), null, false, contCard);
     row(box, 'المفضلة', favs().map(function (f) { return nodes[f.id]; }).filter(Boolean));
   }
-  var any = false, kinds = filter === 'all' ? ['series', 'movie'] : [filter], label = { series: 'مسلسلات', movie: 'أفلام' }, loose = [];
+  var any = false, kinds = filter === 'all' ? ['series', 'movie'] : [filter], label = { series: 'مسلسلات', movie: 'أفلام' }, loose = [], ytTops = [];
   kids(rootKey).forEach(function (top) {
     if (!top.folder) { loose.push(top); return; }
     if (!top.kids) return;
     var bk = bucketKind(top);
     if (bk) { if (kinds.indexOf(bk) >= 0) { var tt = titlesUnder(top, bk); if (tt.length) { row(box, top.name, tt, top); any = true; } } return; }
     if (isTitle(top)) { loose.push(top); return; }
-    if (YT_RE.test(norm(top.name))) { if (filter === 'all' && ytSection(box, top)) any = true; return; }
+    if (YT_RE.test(norm(top.name))) { ytTops.push(top); return; }
     var sec = el('section', 'company'), rows = 0;
     var hd = el('div', 'cohead'), hb = el('button', 'coname'); hb.type = 'button';
     var lp = poster(top); if (lp) { var li = el('span', 'cologo'); li.appendChild(img(lp)); hb.appendChild(li); }
@@ -745,6 +745,8 @@ function renderHome(box) {
     if (rows) { box.appendChild(sec); any = true; }
   });
   if (loose.length && filter === 'all') { row(box, 'أخرى', loose); any = true; }
+  /* يوتيوب دائماً في آخر الصفحة */
+  if (filter === 'all') ytTops.forEach(function (yt) { if (ytSection(box, yt)) any = true; });
   if (!any && !crawling) box.appendChild(el('div', 'state', filter === 'all' ? 'لم أجد مجلدات أو ملفات فيديو في المجلد الرئيسي.' : 'لا يوجد شيء في هذا التصنيف بعد.'));
 }
 function renderSearch(box) {
