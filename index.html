@@ -434,7 +434,7 @@ function loadKids(id) {
       '&fields=' + encodeURIComponent('nextPageToken,files(id,name,mimeType,thumbnailLink,createdTime,videoMediaMetadata(durationMillis))') +
       '&supportsAllDrives=true&includeItemsFromAllDrives=true&q=' + encodeURIComponent(q) + (tok ? '&pageToken=' + encodeURIComponent(tok) : '');
     return fetch(url, { headers: { Authorization: 'Bearer ' + token } }).then(function (r) {
-      if (r.status === 401) { sset('mk_token', null); throw new Error('انتهت الجلسة. اضغط «تسجيل الخروج» ثم سجّل الدخول من جديد.'); }
+      if (r.status === 401) { lset('mk_token', null); lset('mk_exp', null); if (renew()) throw new Error('جارٍ تجديد الدخول…'); throw new Error('انتهت الجلسة. اضغط «تسجيل الخروج» ثم سجّل الدخول من جديد.'); }
       if (r.status === 404) throw new Error('لم أجد المجلد. تأكد من رابط المجلد وأنه متاح للحساب الذي سجّلت به.');
       if (!r.ok) throw new Error('تعذّرت قراءة المجلد من Drive (رمز ' + r.status + ').');
       return r.json();
@@ -456,7 +456,7 @@ function loadKids(id) {
 function checkAccount() {
   var H = { headers: { Authorization: 'Bearer ' + token } };
   fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)', H).then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (d) { var e = d && d.user && d.user.emailAddress; if (e) { $('who').textContent = e; $('who').hidden = false; } }).catch(function () {});
+    .then(function (d) { var e = d && d.user && d.user.emailAddress; if (e) { $('who').textContent = e; $('who').hidden = false; store('mk_email', e); } }).catch(function () {});
   fetch('https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(rootId) + '?fields=id&supportsAllDrives=true', H).then(function (r) {
     if (r.status === 404 || r.status === 403) { fatal = 'هذا الحساب' + ($('who').textContent ? ' (' + $('who').textContent + ')' : '') + ' لا يرى مجلد المكتبة. اضغط «تسجيل الخروج» ثم ادخل بحساب المكتبة، أو شارك المجلد مع هذا الحساب.'; schedule(); }
   }).catch(function () {});
@@ -679,7 +679,7 @@ async function download(v) {
   try {
     var url = demo ? 'assets/demo.mp4' : 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(v.id) + '?alt=media&supportsAllDrives=true';
     var res = await fetch(url, demo ? { signal: ctl.signal } : { headers: { Authorization: 'Bearer ' + token }, signal: ctl.signal });
-    if (!res.ok) throw new Error(res.status === 403 ? 'التحميل غير مسموح لهذا الحساب، لأن تنزيل هذا الملف مقفل في Drive.' : res.status === 401 ? 'انتهت الجلسة. سجّل الدخول من جديد ثم حمّل.' : 'تعذّر التحميل (رمز ' + res.status + ').');
+    if (!res.ok) throw new Error(res.status === 403 ? 'التحميل غير مسموح لهذا الحساب، لأن تنزيل هذا الملف مقفل في Drive.' : res.status === 401 ? 'انتهت الجلسة. اقفل المشغّل وبيتجدد الدخول تلقائياً، ثم حمّل.' : 'تعذّر التحميل (رمز ' + res.status + ').');
     var total = Number(res.headers.get('Content-Length')) || 0, type = res.headers.get('Content-Type') || 'video/mp4';
     var two = res.body.tee(), got = 0, c = await caches.open('hm-dl');
     var put = c.put(dlKey(v.id), new Response(two[0], { headers: { 'Content-Type': type } }));
@@ -1188,7 +1188,7 @@ function play(i) {
   $('player').hidden = false;
   var curEl = strip.querySelector('[aria-current]'); if (curEl) curEl.scrollIntoView({ block: 'nearest', inline: 'center' });
 }
-$('btnClose').onclick = function () { stopVideo(); $('stage').textContent = ''; $('player').hidden = true; render(); };
+$('btnClose').onclick = function () { stopVideo(); $('stage').textContent = ''; $('player').hidden = true; render(); if (token && !demo && !offline && !tokenFresh()) renew(); };
 $('btnPrev').onclick = function () { if (qIndex > 0) play(qIndex - 1); };
 $('btnNext').onclick = function () { if (qIndex < queue.length - 1) play(qIndex + 1); };
 $('btnDone').onclick = function () { markDone(queue[qIndex]); if (qIndex < queue.length - 1) play(qIndex + 1); else $('btnClose').onclick(); };
@@ -1225,30 +1225,51 @@ function sget(k) { try { return sessionStorage.getItem(k); } catch (e) { return 
 function sset(k, v) { try { if (v == null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v); } catch (e) {} }
 function onSite() { return /github\.io$/.test(location.hostname); }
 if (onSite() && 'serviceWorker' in navigator) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }
+/* يبقى مسجّلاً: نحفظ الجلسة في الجهاز، وإذا انتهت (كل ساعة) نجددها تلقائياً من Google بدون ما تختار الحساب مرة ثانية */
+function lget(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lset(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
+function authUrl(silent) {
+  var state = Math.random().toString(36).slice(2) + Date.now().toString(36), hint = lget('mk_email');
+  sset('mk_state', state);
+  return 'https://accounts.google.com/o/oauth2/v2/auth?' + [
+    'client_id=' + encodeURIComponent(clientId), 'redirect_uri=' + encodeURIComponent(REDIRECT),
+    'response_type=token', 'scope=' + encodeURIComponent(SCOPE), 'include_granted_scopes=true', 'state=' + encodeURIComponent(state),
+    silent ? 'prompt=none' : 'prompt=select_account'
+  ].concat(silent && hint ? ['login_hint=' + encodeURIComponent(hint)] : []).join('&');
+}
+function canRenew() { return onSite() && navigator.onLine && clientId && rootId && lget('mk_auto') === '1' && !sget('mk_silent_fail'); }
+function renew() {
+  if (!canRenew()) return false;
+  sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
+}
+function tokenFresh() { return token && Number(lget('mk_exp') || 0) > Date.now(); }
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState !== 'visible' || demo || offline || !token || tokenFresh()) return;
+  if ($('player').hidden) renew();
+});
 $('btnSignin').onclick = function () {
   showMsg('');
   if (!clientId || !rootId) { $('setup').hidden = false; $('setup').open = true; showMsg('أكمل «إعداد الربط» أولاً: معرّف العميل ورابط المجلد الرئيسي.'); return; }
   if (!onSite()) { showMsg('تسجيل الدخول لا يعمل في هذه المعاينة. افتح الموقع: ' + REDIRECT); return; }
-  var state = Math.random().toString(36).slice(2) + Date.now().toString(36);
-  sset('mk_state', state); Intro.stop();
-  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + [
-    'client_id=' + encodeURIComponent(clientId), 'redirect_uri=' + encodeURIComponent(REDIRECT),
-    'response_type=token', 'scope=' + encodeURIComponent(SCOPE), 'include_granted_scopes=true', 'prompt=select_account', 'state=' + encodeURIComponent(state)
-  ].join('&');
+  sset('mk_silent_fail', null); Intro.stop();
+  location.href = authUrl(false);
 };
-function useToken(t, exp) { token = t; demo = false; sset('mk_token', t); sset('mk_exp', String(exp)); openLibrary(); }
+function useToken(t, exp) { token = t; demo = false; lset('mk_token', t); lset('mk_exp', String(exp)); lset('mk_auto', '1'); sset('mk_silent_fail', null); openLibrary(); }
 (function resume() {
   var h = location.hash.replace(/^#/, '');
   if (/(^|&)(access_token|error)=/.test(h)) {
     var p = {}; h.split('&').forEach(function (kv) { var i = kv.indexOf('='); p[decodeURIComponent(kv.slice(0, i))] = decodeURIComponent(kv.slice(i + 1)); });
     try { history.replaceState(null, '', location.pathname); } catch (e) { location.hash = ''; }
+    var wasSilent = sget('mk_silent') === '1'; sset('mk_silent', null);
+    if (p.error && wasSilent) { sset('mk_silent_fail', '1'); return; }
     if (p.error) { showMsg(p.error === 'access_denied' ? 'لم تكتمل الموافقة في صفحة Google. إن كان حسابك غير مضاف كمستخدم تجريبي فأضفه ثم أعد المحاولة.' : 'رفض Google الدخول (' + p.error + ').'); return; }
     if (p.state !== sget('mk_state')) { showMsg('انتهت محاولة الدخول. اضغط الزر مرة أخرى.'); return; }
     sset('mk_state', null);
     useToken(p.access_token, Date.now() + (Number(p.expires_in) || 3600) * 1000 - 60000); return;
   }
-  var t = sget('mk_token'), e = Number(sget('mk_exp') || 0);
-  if (t && e > Date.now()) { token = t; demo = false; openLibrary(); }
+  var t = lget('mk_token'), e = Number(lget('mk_exp') || 0);
+  if (t && e > Date.now()) { token = t; demo = false; openLibrary(); return; }
+  renew();
 })();
 $('btnDemo').onclick = function () { Intro.stop(); demo = true; token = null; openLibrary(); };
 $('btnSave').onclick = function () {
@@ -1261,7 +1282,7 @@ offlineButton();
 if (!navigator.onLine && Object.keys(jget('dl', {})).length && $('signin').hidden === false) setTimeout(function () { showMsg('ما فيه اتصال بالإنترنت. تقدر تشاهد الحلقات المحمّلة من زر «التحميلات».'); }, 300);
 $('btnSignout').onclick = function () {
   try { if (token) fetch('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(token), { method: 'POST' }).catch(function () {}); } catch (e) {}
-  sset('mk_token', null); sset('mk_exp', null); $('who').hidden = true; $('who').textContent = '';
+  lset('mk_token', null); lset('mk_exp', null); lset('mk_auto', null); lset('mk_email', null); sset('mk_silent_fail', null); $('who').hidden = true; $('who').textContent = '';
   token = null; demo = false; offline = false; nodes = {}; crawlGen++; offlineButton();
   $('library').hidden = true; $('signin').hidden = false; showMsg('');
 };
