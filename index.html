@@ -170,8 +170,15 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 
 /* شريط القنوات */
 .chanhead{font-size:20px;margin:18px 0 10px}
-.channels{display:flex;gap:16px;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x proximity}
-.chan{flex:0 0 160px;display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;padding:0;color:var(--text);scroll-snap-align:start}
+.channels{direction:ltr;overflow-x:auto;padding:4px 0 8px;margin:0 -20px;-webkit-mask-image:linear-gradient(to right,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(to right,transparent,#000 8%,#000 92%,transparent)}
+.track{display:flex;gap:16px;width:max-content;padding:0 20px;direction:ltr}
+.track .chan{direction:rtl}
+.track.run{animation:slide linear infinite;will-change:transform}
+.channels:has(.track.run){overflow:hidden}
+.channels:hover .track,.channels:focus-within .track,.channels.hold .track{animation-play-state:paused}
+@keyframes slide{from{transform:translateX(0)}to{transform:translateX(calc(-1 * var(--w)))}}
+@media (prefers-reduced-motion:reduce){.track.run{animation:none}}
+.chan{flex:0 0 160px;display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;padding:0;color:var(--text)}
 .chanlogo{width:160px;height:100px;border-radius:16px;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(0,0,0,.45)}
 .chanlogo:not(:has(img)){background:var(--raised)}
 .chanlogo img{width:100%;height:100%;object-fit:cover;display:block}
@@ -567,19 +574,35 @@ function chips(box) {
   });
   box.appendChild(c);
 }
-/* شريط القنوات أعلى الرئيسية */
+/* شريط القنوات أعلى الرئيسية: يتحرك ببطء نحو اليسار في حلقة متصلة */
+var MARQUEE_T0 = Date.now();
 function channels(box) {
   var cos = kids(rootKey).filter(function (c) { return c.folder && c.kids && !bucketKind(c) && !isTitle(c); });
   if (!cos.length) return;
-  var wrap = el('nav', 'channels'); wrap.setAttribute('aria-label', 'القنوات');
-  cos.forEach(function (c) {
+  function mk(c) {
     var b = el('button', 'chan'); b.type = 'button';
     var lg = el('span', 'chanlogo'), p = poster(c);
-    if (p) { var li = img(p.thumb ? { id: p.id, name: p.name, thumb: p.thumb.replace(/=s\d+$/, '=s800') } : p); var z = LOGO_ZOOM[c.name.trim()]; if (z) li.style.transform = 'scale(' + z + ')'; lg.appendChild(li); } else lg.appendChild(el('span', 'chaninit', c.name.trim().charAt(0)));
+    if (p) { var li = img(p.thumb ? { id: p.id, name: p.name, thumb: p.thumb.replace(/=s\d+$/, '=s800') } : p); var z = LOGO_ZOOM[c.name.trim()]; if (z) li.style.transform = 'scale(' + z + ')'; lg.appendChild(li); }
+    else lg.appendChild(el('span', 'chaninit', c.name.trim().charAt(0)));
     b.appendChild(lg); b.appendChild(el('span', 'channame', c.name));
-    b.onclick = function () { open(c); }; wrap.appendChild(b);
-  });
+    b.onclick = function () { open(c); }; return b;
+  }
+  var wrap = el('nav', 'channels marquee'), track = el('div', 'track');
+  wrap.setAttribute('aria-label', 'القنوات');
+  cos.forEach(function (c) { track.appendChild(mk(c)); });
+  wrap.appendChild(track);
   box.appendChild(el('h2', 'chanhead', 'القنوات')); box.appendChild(wrap);
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var W = track.scrollWidth + 16, cw = wrap.clientWidth || 360, copies = Math.ceil(cw / W) + 1;
+  for (var k = 0; k < copies; k++) cos.forEach(function (c) { var x = mk(c); x.setAttribute('aria-hidden', 'true'); x.tabIndex = -1; track.appendChild(x); });
+  var dur = W / 26;
+  track.style.setProperty('--w', W + 'px');
+  track.style.animationDuration = dur + 's';
+  track.style.animationDelay = -(((Date.now() - MARQUEE_T0) / 1000) % dur) + 's';
+  track.classList.add('run');
+  var hold = 0;
+  wrap.addEventListener('pointerdown', function () { clearTimeout(hold); wrap.classList.add('hold'); });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) { wrap.addEventListener(ev, function () { clearTimeout(hold); hold = setTimeout(function () { wrap.classList.remove('hold'); }, 1500); }); });
 }
 function renderHome(box) {
   if (fatal) { box.appendChild(el('div', 'state', fatal)); return; }
