@@ -203,6 +203,10 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 #pDl.on{color:var(--accent)}
 .dlpct{font-size:12px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
 .dlrow{display:flex;align-items:center;gap:6px}
+.epdl{flex:none;width:44px;height:44px}
+.epdl.on{color:var(--accent)}
+.dlall{display:flex;justify-content:flex-start;margin:4px 0 10px}
+.dlall .btn{display:inline-flex;align-items:center;gap:8px}
 .dlrow .video{flex:1;min-width:0}
 .dlinfo{margin:0 0 6px;color:var(--muted);font-size:13px}
 .dlbar{display:block;width:100%;margin-top:6px}
@@ -656,7 +660,7 @@ function dlTick() {
     document.querySelectorAll('[data-dl]').forEach(function (e) {
       var id = e.getAttribute('data-dl'), p = DLA[id];
       if (p === undefined) return;
-      if (e.tagName === 'I') e.style.width = Math.round(p * 100) + '%'; else e.textContent = 'جارٍ التحميل ' + Math.round(p * 100) + '٪';
+      if (e.tagName === 'I') e.style.width = Math.round(p * 100) + '%'; else if (e.hasAttribute('data-pct')) e.textContent = Math.round(p * 100) + '٪'; else e.textContent = 'جارٍ التحميل ' + Math.round(p * 100) + '٪';
     });
     if (!$('player').hidden && queue[qIndex]) setDlButton(queue[qIndex]);
   }, 150);
@@ -672,6 +676,7 @@ function saveRec(v, size) {
 async function download(v) {
   if (!('caches' in window) || !window.ReadableStream) { toast('هذا المتصفح لا يدعم التحميل داخل التطبيق.'); return; }
   if (DLA[v.id] !== undefined || isDl(v.id)) return;
+  if (Object.keys(DLA).length) { if (dlQueue.indexOf(v) < 0) dlQueue.push(v); toast('أُضيفت لقائمة التحميل، تبدأ بعد الحالية.'); render(); return; }
   if (!demo && !token) { toast('سجّل الدخول أولاً لتحميل الحلقات.'); return; }
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
   var ctl = new AbortController(); DLC[v.id] = ctl; DLA[v.id] = 0; dlTick(); render();
@@ -692,7 +697,7 @@ async function download(v) {
     try { (await caches.open('hm-dl')).delete(dlKey(v.id)); } catch (er) {}
     if (e.name !== 'AbortError') toast(e.name === 'QuotaExceededError' ? 'المساحة في الجهاز لا تكفي لهذا الملف.' : (e.message || 'تعذّر التحميل.'));
   }
-  delete DLA[v.id]; delete DLC[v.id]; render(); if (!$('player').hidden && queue[qIndex]) setDlButton(queue[qIndex]);
+  delete DLA[v.id]; delete DLC[v.id]; render(); setTimeout(dlPump, 0); if (!$('player').hidden && queue[qIndex]) setDlButton(queue[qIndex]);
 }
 async function dlDelete(id) {
   if (DLC[id]) { DLC[id].abort(); return; }
@@ -826,6 +831,40 @@ function videoRow(n, withPath) {
   else if (!n.folder && DLA[n.id] !== undefined) { var dg = el('span', 'stat now', 'جارٍ التحميل'); dg.setAttribute('data-dl', n.id); tx.appendChild(dg); }
   b.appendChild(p); b.appendChild(tx); b.appendChild(el('span', 'dur', n.folder ? summary(n) : fmt(n.dur)));
   b.onclick = function () { open(n); }; return b;
+}
+/* صف حلقة مع زر تحميل بجانبها */
+function dlBtn(v) {
+  var x = el('button', 'iconbtn epdl'); x.type = 'button';
+  if (DLA[v.id] !== undefined) { var s = el('span', 'dlpct', Math.round(DLA[v.id] * 100) + '٪'); s.setAttribute('data-dl', v.id); s.setAttribute('data-pct', '1'); x.appendChild(s); x.setAttribute('aria-label', 'إلغاء تحميل ' + disp(v)); x.onclick = function () { dlDelete(v.id); }; }
+  else if (isDl(v.id)) { x.classList.add('on'); x.appendChild(icon(CHECK, 20)); x.setAttribute('aria-label', disp(v) + ' محمّلة'); x.onclick = function () { toast('محمّلة. تحذفها من صفحة «التحميلات».'); }; }
+  else { x.appendChild(icon(IC_DL, 20)); x.setAttribute('aria-label', 'تحميل ' + disp(v)); x.onclick = function () { download(v); }; }
+  return x;
+}
+function epRow(v) {
+  if (offline) return videoRow(v, false);
+  var r = el('div', 'dlrow'); r.appendChild(videoRow(v, false)); r.appendChild(dlBtn(v)); return r;
+}
+/* تحميل كل حلقات الموسم واحدة بعد الثانية */
+var dlQueue = [];
+function dlAll(eps) {
+  eps.forEach(function (v) { if (!isDl(v.id) && DLA[v.id] === undefined && dlQueue.indexOf(v) < 0) dlQueue.push(v); });
+  if (!dlQueue.length) { toast('كل الحلقات محمّلة.'); return; }
+  toast('بيتحمّل ' + dlQueue.length + ' حلقة واحدة بعد الثانية.');
+  dlPump();
+}
+function dlPump() {
+  if (Object.keys(DLA).length || !dlQueue.length) return;
+  var v = dlQueue.shift(); download(v).then(function () { if (isDl(v.id)) dlPump(); else dlQueue = []; render(); });
+}
+function dlAllBar(eps, name) {
+  var bar = el('div', 'dlall');
+  if (offline || !eps.length) return bar;
+  var left = eps.filter(function (v) { return !isDl(v.id); }).length;
+  var b = el('button', 'btn ghost', left ? 'تحميل ' + (name ? name : 'الكل') + ' (' + left + ')' : 'الكل محمّل'); b.type = 'button';
+  b.insertBefore(icon(left ? IC_DL : CHECK, 16), b.firstChild); b.disabled = !left;
+  if (dlQueue.length) { b.textContent = 'إيقاف التحميل المتتابع (' + dlQueue.length + ' باقية)'; b.disabled = false; b.onclick = function () { dlQueue = []; render(); }; }
+  else b.onclick = function () { dlAll(eps); render(); };
+  bar.appendChild(b); return bar;
 }
 function chips(box) {
   var c = el('div', 'fchips'); c.setAttribute('role', 'group'); c.setAttribute('aria-label', 'تصفية');
@@ -984,7 +1023,8 @@ function renderTitle(box, t) {
     gs.forEach(function (x) { var b = el('button', 'fchip', x.name); b.type = 'button'; b.setAttribute('aria-pressed', String(x === g)); b.onclick = function () { seasonSel[t.id] = x.id; render(); }; tabs.appendChild(b); });
     box.appendChild(tabs);
   } else box.appendChild(el('h3', '', g.name + ' (' + g.eps.length + ')'));
-  var l = el('div', 'list'); g.eps.forEach(function (v) { l.appendChild(videoRow(v, false)); }); box.appendChild(l);
+  box.appendChild(dlAllBar(g.eps, gs.length > 1 ? g.name : ''));
+  var l = el('div', 'list'); g.eps.forEach(function (v) { l.appendChild(epRow(v)); }); box.appendChild(l);
 }
 /* صفحة الشركة أو أي مجلد تصنيف */
 function vcard(v, wide) {
@@ -1065,7 +1105,7 @@ function renderFolder(box) {
   var folders = items.filter(function (x) { return x.folder; }), videos = items.filter(function (x) { return !x.folder; });
   if (!items.length) { box.appendChild(el('div', 'state', 'هذا المجلد لا يحتوي مجلدات أو ملفات فيديو.')); return; }
   if (folders.length) { var g = el('div', 'grid'); folders.forEach(function (f) { g.appendChild(card(f)); }); box.appendChild(g); }
-  if (videos.length) { box.appendChild(el('h3', '', 'للمشاهدة (' + videos.length + ')')); var l = el('div', 'list'); videos.forEach(function (v) { l.appendChild(videoRow(v, false)); }); box.appendChild(l); }
+  if (videos.length) { box.appendChild(el('h3', '', 'للمشاهدة (' + videos.length + ')')); box.appendChild(dlAllBar(videos, '')); var l = el('div', 'list'); videos.forEach(function (v) { l.appendChild(epRow(v)); }); box.appendChild(l); }
 }
 function render() {
   if ($('library').hidden) return;
