@@ -788,7 +788,9 @@ function renderSearch(box) {
   var words = norm(query).split(/\s+/).filter(Boolean), hits = [];
   Object.keys(nodes).forEach(function (id) {
     var n = nodes[id]; if (id === rootKey) return;
-    var hay = norm(n.name); if (words.every(function (w) { return hay.indexOf(w) >= 0; })) hits.push(n);
+    var extra = '';
+    if (!n.folder) { var t = titleOf(n); extra = ' ' + tidy(clean(n.name)) + ' ' + dispLong(n) + (t !== n ? ' ' + t.name : ''); }
+    var hay = norm(n.name + extra); if (words.every(function (w) { return hay.indexOf(w) >= 0; })) hits.push(n);
   });
   hits.sort(function (a, b) { return (b.folder - a.folder) || a.name.localeCompare(b.name, 'ar', { numeric: true }); });
   var h = el('div', 'rowhead'); h.appendChild(el('h2', '', 'نتائج البحث (' + hits.length + ')')); box.appendChild(h);
