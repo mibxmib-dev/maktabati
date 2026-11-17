@@ -108,6 +108,7 @@ header.top{position:sticky;top:0;background:var(--ground);border-bottom:1px soli
 .top h1 button{background:none;border:0;color:var(--text);font:inherit;font-weight:700;min-height:44px;padding:0}
 .search{flex:1 1 220px;min-height:44px;border-radius:22px;border:1px solid var(--line);background:var(--surface);color:var(--text);padding:0 18px}
 .search::placeholder{color:var(--muted)}
+.who{font-size:12px;color:var(--muted);direction:ltr;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .badge{font-size:12px;color:var(--on-accent);background:var(--accent);border-radius:20px;padding:2px 10px;font-weight:700}
 .status{font-size:13px;color:var(--muted);padding:10px 0 0}
 main{padding-bottom:48px}
@@ -293,6 +294,7 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
   <header class="top"><div class="wrap">
     <h1><button id="btnHome" type="button" aria-label="الرئيسية"><span class="brand">home movie</span></button></h1>
     <span class="badge" id="demoBadge" hidden>عرض تجريبي</span>
+    <span class="who" id="who" hidden></span>
     <input class="search" id="q" type="search" autocomplete="off" placeholder="ابحث عن فيلم أو مسلسل أو حلقة" aria-label="بحث في المكتبة">
     <button class="btn small" id="btnRefresh" type="button">تحديث</button>
     <button class="btn small" id="btnSignout" type="button">تسجيل الخروج</button>
@@ -424,8 +426,18 @@ function loadKids(id) {
   nd.loading = page().then(function (a) { nd.kids = a; nd.images = imgs; nd.loading = null; return a; }, function (e) { nd.loading = null; throw e; });
   return nd.loading;
 }
+/* يتأكد أن الحساب الذي دخلت به يرى المجلد الرئيسي، ويعرض بريده في الأعلى */
+function checkAccount() {
+  var H = { headers: { Authorization: 'Bearer ' + token } };
+  fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)', H).then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) { var e = d && d.user && d.user.emailAddress; if (e) { $('who').textContent = e; $('who').hidden = false; } }).catch(function () {});
+  fetch('https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(rootId) + '?fields=id&supportsAllDrives=true', H).then(function (r) {
+    if (r.status === 404 || r.status === 403) { fatal = 'هذا الحساب' + ($('who').textContent ? ' (' + $('who').textContent + ')' : '') + ' لا يرى مجلد المكتبة. اضغط «تسجيل الخروج» ثم ادخل بحساب المكتبة، أو شارك المجلد مع هذا الحساب.'; schedule(); }
+  }).catch(function () {});
+}
 function crawl() {
   var gen = ++crawlGen, q = [rootKey], active = 0; crawling = true; fatal = '';
+  checkAccount();
   function next() {
     if (gen !== crawlGen) return;
     while (active < 4 && q.length) (function (id) {
@@ -700,6 +712,7 @@ function channels(box) {
 function renderHome(box) {
   if (fatal) { box.appendChild(el('div', 'state', fatal)); return; }
   if (!nodes[rootKey].kids) { box.appendChild(el('div', 'state', 'جارٍ التحميل…')); return; }
+  if (fatal) { box.appendChild(el('div', 'state', fatal)); return; }
   channels(box);
   chips(box);
   if (filter === 'fav') {
@@ -1046,7 +1059,7 @@ $('btnSave').onclick = function () {
 $('btnRefresh').onclick = function () { openLibrary(); };
 $('btnSignout').onclick = function () {
   try { if (token) fetch('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(token), { method: 'POST' }).catch(function () {}); } catch (e) {}
-  sset('mk_token', null); sset('mk_exp', null);
+  sset('mk_token', null); sset('mk_exp', null); $('who').hidden = true; $('who').textContent = '';
   token = null; demo = false; nodes = {}; crawlGen++;
   $('library').hidden = true; $('signin').hidden = false; showMsg('');
 };
