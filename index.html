@@ -74,7 +74,10 @@ button{cursor:pointer}
   .tv{left:35.29%;top:46.29%;width:27.34%;height:11.99%;border-radius:6%/9%;clip-path:polygon(0 0,100% 0,100% 100%,97.6% 100%,97.6% 88.5%,95.8% 85.2%,15.4% 85.2%,13.6% 88.5%,13.6% 100%,0 100%)}
   .neon{font-size:21cqw;margin-top:-6%}
   .tvlight{left:8%;top:34%;width:84%;height:34%}
-  .login{position:relative;z-index:2;margin-top:-72px}
+  #signin{--sw:min(100vw,calc(100vh * .5581));--sw:min(100vw,calc(100svh * .5581));padding-bottom:0}
+  .login{position:absolute;z-index:6;left:0;right:0;margin:0 auto;top:calc(var(--sw) * 1.7917 * .045);gap:12px;text-shadow:0 1px 8px rgba(0,0,0,.8)}
+  .login .lead{font-size:15px;line-height:1.55}
+  .login .note{font-size:12px}
 }
 
 /* الأزرار والنماذج */
