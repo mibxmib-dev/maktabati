@@ -185,6 +185,18 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 .chaninit{font-size:44px;font-weight:700;color:var(--accent)}
 .channame{font-size:15px;font-weight:600;text-align:center;line-height:1.35;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
+/* المشغّل: الاستكمال */
+.stage{position:relative}
+.stage video{width:100%;height:100%;background:#000;display:block}
+.resume{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;background:rgba(10,6,6,.82);text-align:center}
+.rtitle{margin:0;font-size:18px;font-weight:700}
+.rsub{margin:0;color:var(--muted);font-size:14px}
+.racts{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.progline{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.22);z-index:2}
+.progline span{position:absolute;top:0;bottom:0;right:0;background:var(--accent)}
+.progline.big{position:relative;width:min(320px,80%);height:6px;border-radius:3px;overflow:hidden}
+.pnote{position:absolute;top:10px;left:10px;right:10px;z-index:3;background:rgba(18,10,10,.9);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;color:var(--text)}
+
 /* يوتيوب */
 .creators{gap:14px}
 .creator{flex:0 0 92px;display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;padding:0;color:var(--text)}
@@ -519,6 +531,16 @@ function toggleFav(t) {
 function hist() { return jget('hist', {}); }
 function done() { return jget('done', {}); }
 function remember(v) { var t = titleOf(v), h = hist(); h[t.id] = { v: v.id, at: Date.now() }; jset('hist', h); }
+function poses() { return jget('pos', {}); }
+function posOf(v) { var p = poses()[v.id]; return p && p.t > 10 && (!p.d || p.t < p.d - 20) ? p : null; }
+function savePos(v, vd) {
+  if (!vd || !isFinite(vd.currentTime)) return;
+  var a = poses(), t = vd.currentTime, d = isFinite(vd.duration) ? vd.duration : 0;
+  if (t > 10 && !(d && t > d - 20)) a[v.id] = { t: Math.floor(t), d: Math.floor(d), at: Date.now() }; else delete a[v.id];
+  jset('pos', a);
+}
+function clock(sec) { sec = Math.floor(sec || 0); var h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s2 = sec % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(s2).padStart(2, '0'); }
+function progressBar(v) { var p = posOf(v); if (!p || !p.d) return null; var b = el('span', 'progline'), f = el('span'); f.style.width = Math.min(100, p.t / p.d * 100) + '%'; b.appendChild(f); return b; }
 function markDone(v, on) { var d = done(); if (on === false) delete d[v.id]; else d[v.id] = 1; jset('done', d); }
 /* الحلقة التي يكمل منها: آخر حلقة فتحتها، أو التي بعدها إن أنهيتها */
 function resumePoint(t) {
@@ -580,6 +602,7 @@ function card(n, sub) {
 function contCard(t) {
   var r = resumePoint(t), b = card(t, t.folder && titleKind(t) === 'series' ? (r.next ? 'التالي: ' : 'تابع: ') + clean(r.ep.name) : 'تابع المشاهدة');
   var pl = el('span', 'play mini over'); pl.appendChild(icon('M8 5v14l11-7z', 14, true)); b.querySelector('.tile').appendChild(pl);
+  var pb = progressBar(r.ep); if (pb) b.querySelector('.tile').appendChild(pb);
   b.onclick = function () { playEpisode(r.ep); }; return b;
 }
 function row(box, title, items, more, sub, mk) {
@@ -596,6 +619,7 @@ function videoRow(n, withPath) {
   if (!n.folder) {
     p = el('span', 'vthumb'); if (pic) p.appendChild(img(pic));
     var pl = el('span', 'play mini'); pl.appendChild(icon('M8 5v14l11-7z', 14, true)); p.appendChild(pl);
+    var pg = progressBar(n); if (pg) p.appendChild(pg);
   } else { p = el('span', 'play'); p.appendChild(icon('M3 6h6l2 2h10v11H3z', 18)); }
   var tx = el('span', 'txt'); tx.appendChild(el('span', 'name', clean(n.name)));
   if (withPath) { var w = where(n); if (w) tx.appendChild(el('span', 'where', w)); }
@@ -736,7 +760,8 @@ function renderTitle(box, t) {
   var acts = el('div', 'tacts');
   if (r.ep) {
     var pb = el('button', 'btn primary'); pb.type = 'button'; pb.appendChild(icon('M8 5v14l11-7z', 18, true));
-    pb.appendChild(document.createTextNode(kind === 'series' ? (r.started ? (r.next ? 'شاهد التالي: ' : 'تابع: ') + clean(r.ep.name) : 'شاهد ' + clean(r.ep.name)) : (r.started ? 'تابع المشاهدة' : 'تشغيل')));
+    var at = posOf(r.ep), from = at ? ' من ' + clock(at.t) : '';
+    pb.appendChild(document.createTextNode(kind === 'series' ? (r.started ? (r.next ? 'شاهد التالي: ' : 'تابع: ') + clean(r.ep.name) + from : 'شاهد ' + clean(r.ep.name)) : (at ? 'تابع' + from : r.started ? 'تابع المشاهدة' : 'تشغيل')));
     pb.onclick = function () { playEpisode(r.ep); }; acts.appendChild(pb);
   }
   var on = isFav(t.id), fb = el('button', 'btn favbtn'); fb.type = 'button'; fb.setAttribute('aria-pressed', String(on));
@@ -760,6 +785,7 @@ function vcard(v, wide) {
   var th = el('span', 'vthumb big'), p = poster(v); if (p) th.appendChild(img(p));
   if (v.dur) th.appendChild(el('span', 'vdur', fmt(v.dur)));
   if (done()[v.id]) { var ok = el('span', 'seenmark'); ok.appendChild(icon(CHECK, 12)); th.appendChild(ok); }
+  var pg = progressBar(v); if (pg) th.appendChild(pg);
   b.appendChild(th); b.appendChild(el('span', 'vname', clean(v.name)));
   var cr = ytCreator(v); if (cr) b.appendChild(el('span', 'vmeta', cr.name));
   b.onclick = function () { ytPlay(v); }; return b;
@@ -864,7 +890,65 @@ $('q').oninput = function () { query = this.value.trim(); render(); };
 $('btnHome').onclick = goHome;
 
 /* ===== المشغّل ===== */
+var curVideo = null, nextTimer = 0;
+function canStream() { return !!(token && navigator.serviceWorker && navigator.serviceWorker.controller); }
+function driveFrame(v, st, note) {
+  st.textContent = ''; curVideo = null;
+  var f = document.createElement('iframe');
+  f.src = 'https://drive.google.com/file/d/' + encodeURIComponent(v.id) + '/preview';
+  f.allow = 'autoplay; fullscreen'; f.allowFullscreen = true; f.title = clean(v.name);
+  st.appendChild(f);
+  if (note) { var n = el('div', 'pnote', note); st.appendChild(n); setTimeout(function () { n.remove(); }, 6000); }
+}
+function stopVideo() {
+  clearInterval(nextTimer); nextTimer = 0;
+  if (curVideo) { savePos(curVideo.v, curVideo.el); try { curVideo.el.pause(); curVideo.el.removeAttribute('src'); curVideo.el.load(); } catch (e) {} curVideo = null; }
+}
+function startVideo(v, st) {
+  var vd = document.createElement('video'); vd.controls = true; vd.playsInline = true; vd.preload = 'metadata';
+  vd.src = demo ? 'assets/demo.mp4' : 'stream/' + encodeURIComponent(v.id) + '?t=' + encodeURIComponent(token);
+  st.appendChild(vd); curVideo = { v: v, el: vd };
+  var saved = 0, failed = false;
+  vd.addEventListener('timeupdate', function () {
+    if (Date.now() - saved > 4000) { savePos(v, vd); saved = Date.now(); }
+    if (vd.duration && vd.currentTime / vd.duration > 0.92 && !done()[v.id]) markDone(v);
+  });
+  vd.addEventListener('pause', function () { savePos(v, vd); });
+  vd.addEventListener('ended', function () { markDone(v); var a = poses(); delete a[v.id]; jset('pos', a); upNext(); });
+  vd.addEventListener('error', function () {
+    if (failed || demo) return; failed = true;
+    driveFrame(v, st, 'تعذّر تشغيل الملف هنا، فانتقلت لمشغّل Google Drive. حفظ مكان التوقف لا يعمل في هذا المشغّل.');
+  });
+  var p = posOf(v);
+  if (!p) { vd.play().catch(function () {}); return; }
+  var box = el('div', 'resume');
+  box.appendChild(el('p', 'rtitle', 'وقفت عند ' + clock(p.t) + (p.d ? ' من ' + clock(p.d) : '')));
+  var bar = el('span', 'progline big'), fl = el('span'); fl.style.width = (p.d ? Math.min(100, p.t / p.d * 100) : 0) + '%'; bar.appendChild(fl); box.appendChild(bar);
+  var acts = el('div', 'racts');
+  var b1 = el('button', 'btn primary'); b1.type = 'button'; b1.appendChild(icon('M8 5v14l11-7z', 18, true)); b1.appendChild(document.createTextNode('تابع من ' + clock(p.t)));
+  var b2 = el('button', 'btn'); b2.type = 'button'; b2.appendChild(icon('M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4', 18)); b2.appendChild(document.createTextNode('ابدأ من البداية'));
+  function go(t) { box.remove(); try { vd.currentTime = t; } catch (e) {} vd.play().catch(function () {}); }
+  b1.onclick = function () { if (vd.readyState >= 1) go(p.t); else vd.addEventListener('loadedmetadata', function () { go(p.t); }, { once: true }); };
+  b2.onclick = function () { var a = poses(); delete a[v.id]; jset('pos', a); go(0); };
+  acts.appendChild(b1); acts.appendChild(b2); box.appendChild(acts); st.appendChild(box);
+}
+function upNext() {
+  if (qIndex >= queue.length - 1) return;
+  var st = $('stage'), nx = queue[qIndex + 1], n = 5, box = el('div', 'resume');
+  box.appendChild(el('p', 'rtitle', 'التالي: ' + clean(nx.name)));
+  var cnt = el('p', 'rsub', 'يبدأ بعد ' + n + ' ثوانٍ'); box.appendChild(cnt);
+  var acts = el('div', 'racts');
+  var b1 = el('button', 'btn primary', 'شغّل الآن'); b1.type = 'button';
+  var b2 = el('button', 'btn', 'إلغاء'); b2.type = 'button';
+  b1.onclick = function () { clearInterval(nextTimer); play(qIndex + 1); };
+  b2.onclick = function () { clearInterval(nextTimer); nextTimer = 0; box.remove(); };
+  acts.appendChild(b1); acts.appendChild(b2); box.appendChild(acts); st.appendChild(box);
+  nextTimer = setInterval(function () { n--; cnt.textContent = 'يبدأ بعد ' + n + ' ثوانٍ'; if (n <= 0) { clearInterval(nextTimer); play(qIndex + 1); } }, 1000);
+}
+document.addEventListener('visibilitychange', function () { if (document.hidden && curVideo) savePos(curVideo.v, curVideo.el); });
+window.addEventListener('pagehide', function () { if (curVideo) savePos(curVideo.v, curVideo.el); });
 function play(i) {
+  stopVideo();
   qIndex = i; var v = queue[i], st = $('stage'), t = titleOf(v), d = done();
   st.textContent = '';
   $('pseries').textContent = t !== v ? t.name : '';
@@ -884,20 +968,12 @@ function play(i) {
     b.appendChild(th); b.appendChild(el('span', 'pepname', clean(e.name)));
     b.onclick = function () { play(k); }; strip.appendChild(b);
   });
-  if (demo) {
-    st.appendChild(el('div', 'demo', 'هذه معاينة تجريبية. في مكتبتك الحقيقية يظهر هنا مشغّل Google Drive ويبدأ البث مباشرة.'));
-    $('openDrive').hidden = true;
-  } else {
-    var f = document.createElement('iframe');
-    f.src = 'https://drive.google.com/file/d/' + encodeURIComponent(v.id) + '/preview';
-    f.allow = 'autoplay; fullscreen'; f.allowFullscreen = true; f.title = clean(v.name);
-    st.appendChild(f);
-    $('openDrive').hidden = false; $('openDrive').href = 'https://drive.google.com/file/d/' + encodeURIComponent(v.id) + '/view';
-  }
+  $('openDrive').hidden = demo; if (!demo) $('openDrive').href = 'https://drive.google.com/file/d/' + encodeURIComponent(v.id) + '/view';
+  if (demo || canStream()) startVideo(v, st); else driveFrame(v, st);
   $('player').hidden = false;
   var curEl = strip.querySelector('[aria-current]'); if (curEl) curEl.scrollIntoView({ block: 'nearest', inline: 'center' });
 }
-$('btnClose').onclick = function () { $('stage').textContent = ''; $('player').hidden = true; render(); };
+$('btnClose').onclick = function () { stopVideo(); $('stage').textContent = ''; $('player').hidden = true; render(); };
 $('btnPrev').onclick = function () { if (qIndex > 0) play(qIndex - 1); };
 $('btnNext').onclick = function () { if (qIndex < queue.length - 1) play(qIndex + 1); };
 $('btnDone').onclick = function () { markDone(queue[qIndex]); if (qIndex < queue.length - 1) play(qIndex + 1); else $('btnClose').onclick(); };
@@ -933,6 +1009,7 @@ var REDIRECT = 'https://mibxmib-dev.github.io/maktabati/';
 function sget(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
 function sset(k, v) { try { if (v == null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v); } catch (e) {} }
 function onSite() { return /github\.io$/.test(location.hostname); }
+if (onSite() && 'serviceWorker' in navigator) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }
 $('btnSignin').onclick = function () {
   showMsg('');
   if (!clientId || !rootId) { $('setup').hidden = false; $('setup').open = true; showMsg('أكمل «إعداد الربط» أولاً: معرّف العميل ورابط المجلد الرئيسي.'); return; }
