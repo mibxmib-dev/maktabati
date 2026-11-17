@@ -173,11 +173,10 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 .channels{direction:ltr;overflow-x:auto;padding:4px 0 8px;margin:0 -20px;-webkit-mask-image:linear-gradient(to right,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(to right,transparent,#000 8%,#000 92%,transparent)}
 .track{display:flex;gap:16px;width:max-content;padding:0 20px;direction:ltr}
 .track .chan{direction:rtl}
-.track.run{animation:slide linear infinite;will-change:transform}
-.channels:has(.track.run){overflow:hidden}
-.channels:hover .track,.channels:focus-within .track,.channels.hold .track{animation-play-state:paused}
-@keyframes slide{from{transform:translateX(0)}to{transform:translateX(calc(-1 * var(--w)))}}
-@media (prefers-reduced-motion:reduce){.track.run{animation:none}}
+.channels{overflow:hidden;touch-action:pan-y;cursor:grab;user-select:none;-webkit-user-select:none}
+.channels.dragging{cursor:grabbing}
+.track{will-change:transform}
+.chan img{-webkit-user-drag:none;pointer-events:none}
 .chan{flex:0 0 160px;display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;padding:0;color:var(--text)}
 .chanlogo{width:160px;height:100px;border-radius:16px;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(0,0,0,.45)}
 .chanlogo:not(:has(img)){background:var(--raised)}
@@ -574,35 +573,63 @@ function chips(box) {
   });
   box.appendChild(c);
 }
-/* شريط القنوات أعلى الرئيسية: يتحرك ببطء نحو اليسار في حلقة متصلة */
-var MARQUEE_T0 = Date.now();
+/* شريط القنوات أعلى الرئيسية: يتحرك ببطء نحو اليسار في حلقة متصلة،
+   ويمكن سحبه باليد في أي اتجاه، ثم يعود للحركة وحده */
+var MQ = { off: 0, v: 0, mode: 'auto', resumeAt: 0, W: 0, track: null, raf: 0, last: 0 };
+var MQ_SPEED = 26, MQ_REDUCE = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+function mqLoop(t) {
+  var dt = MQ.last ? Math.min((t - MQ.last) / 1000, 0.05) : 0; MQ.last = t;
+  if (!MQ.track || !MQ.track.isConnected) { MQ.raf = 0; MQ.last = 0; return; }
+  if (MQ.mode === 'auto' && !MQ_REDUCE) MQ.off -= MQ_SPEED * dt;
+  else if (MQ.mode === 'coast') { MQ.off += MQ.v * dt; MQ.v *= Math.pow(0.03, dt); if (Math.abs(MQ.v) < 15) { MQ.mode = 'wait'; MQ.resumeAt = t + 1500; } }
+  else if (MQ.mode === 'wait' && t > MQ.resumeAt) MQ.mode = 'auto';
+  if (MQ.W) { MQ.off = ((MQ.off % MQ.W) - MQ.W) % MQ.W; }
+  MQ.track.style.transform = 'translate3d(' + MQ.off + 'px,0,0)';
+  MQ.raf = requestAnimationFrame(mqLoop);
+}
 function channels(box) {
   var cos = kids(rootKey).filter(function (c) { return c.folder && c.kids && !bucketKind(c) && !isTitle(c); });
   if (!cos.length) return;
   function mk(c) {
-    var b = el('button', 'chan'); b.type = 'button';
+    var b = el('button', 'chan'); b.type = 'button'; b.draggable = false;
     var lg = el('span', 'chanlogo'), p = poster(c);
-    if (p) { var li = img(p.thumb ? { id: p.id, name: p.name, thumb: p.thumb.replace(/=s\d+$/, '=s800') } : p); var z = LOGO_ZOOM[c.name.trim()]; if (z) li.style.transform = 'scale(' + z + ')'; lg.appendChild(li); }
+    if (p) { var li = img(p.thumb ? { id: p.id, name: p.name, thumb: p.thumb.replace(/=s\d+$/, '=s800') } : p); li.draggable = false; var z = LOGO_ZOOM[c.name.trim()]; if (z) li.style.transform = 'scale(' + z + ')'; lg.appendChild(li); }
     else lg.appendChild(el('span', 'chaninit', c.name.trim().charAt(0)));
     b.appendChild(lg); b.appendChild(el('span', 'channame', c.name));
     b.onclick = function () { open(c); }; return b;
   }
-  var wrap = el('nav', 'channels marquee'), track = el('div', 'track');
+  var wrap = el('nav', 'channels'), track = el('div', 'track');
   wrap.setAttribute('aria-label', 'القنوات');
   cos.forEach(function (c) { track.appendChild(mk(c)); });
   wrap.appendChild(track);
   box.appendChild(el('h2', 'chanhead', 'القنوات')); box.appendChild(wrap);
-  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   var W = track.scrollWidth + 16, cw = wrap.clientWidth || 360, copies = Math.ceil(cw / W) + 1;
   for (var k = 0; k < copies; k++) cos.forEach(function (c) { var x = mk(c); x.setAttribute('aria-hidden', 'true'); x.tabIndex = -1; track.appendChild(x); });
-  var dur = W / 26;
-  track.style.setProperty('--w', W + 'px');
-  track.style.animationDuration = dur + 's';
-  track.style.animationDelay = -(((Date.now() - MARQUEE_T0) / 1000) % dur) + 's';
-  track.classList.add('run');
-  var hold = 0;
-  wrap.addEventListener('pointerdown', function () { clearTimeout(hold); wrap.classList.add('hold'); });
-  ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) { wrap.addEventListener(ev, function () { clearTimeout(hold); hold = setTimeout(function () { wrap.classList.remove('hold'); }, 1500); }); });
+  MQ.W = W; MQ.track = track; track.style.transform = 'translate3d(' + (((MQ.off % W) - W) % W) + 'px,0,0)';
+  if (!MQ.raf) { MQ.last = 0; MQ.raf = requestAnimationFrame(mqLoop); }
+  /* السحب باليد */
+  var down = null, moved = false, lastX = 0, lastT = 0, suppress = false;
+  wrap.addEventListener('pointerdown', function (e) { down = { x: e.clientX, off: MQ.off, id: e.pointerId }; moved = false; lastX = e.clientX; lastT = performance.now(); MQ.v = 0; MQ.mode = 'hold'; });
+  wrap.addEventListener('pointermove', function (e) {
+    if (!down || e.pointerId !== down.id) return;
+    var dx = e.clientX - down.x;
+    if (!moved && Math.abs(dx) > 6) { moved = true; try { wrap.setPointerCapture(e.pointerId); } catch (er) {} wrap.classList.add('dragging'); }
+    if (moved) {
+      var now = performance.now(), dt = (now - lastT) / 1000;
+      if (dt > 0) MQ.v = 0.8 * ((e.clientX - lastX) / dt) + 0.2 * MQ.v;
+      lastX = e.clientX; lastT = now; MQ.off = down.off + dx; MQ.mode = 'drag';
+    }
+  });
+  function end(e) {
+    if (!down || (e && e.pointerId !== down.id)) return;
+    if (moved) { suppress = true; MQ.mode = Math.abs(MQ.v) > 40 ? 'coast' : 'wait'; MQ.resumeAt = performance.now() + 1500; }
+    else { MQ.mode = 'wait'; MQ.resumeAt = performance.now() + 1500; }
+    wrap.classList.remove('dragging'); down = null;
+  }
+  wrap.addEventListener('pointerup', end); wrap.addEventListener('pointercancel', end);
+  wrap.addEventListener('click', function (e) { if (suppress) { e.stopPropagation(); e.preventDefault(); suppress = false; } }, true);
+  wrap.addEventListener('focusin', function () { MQ.mode = 'hold'; });
+  wrap.addEventListener('focusout', function () { MQ.mode = 'wait'; MQ.resumeAt = performance.now() + 1500; });
 }
 function renderHome(box) {
   if (fatal) { box.appendChild(el('div', 'state', fatal)); return; }
