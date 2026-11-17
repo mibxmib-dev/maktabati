@@ -185,6 +185,29 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 .chaninit{font-size:44px;font-weight:700;color:var(--accent)}
 .channame{font-size:15px;font-weight:600;text-align:center;line-height:1.35;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
+/* يوتيوب */
+.creators{gap:14px}
+.creator{flex:0 0 92px;display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;padding:0;color:var(--text)}
+.avatar{width:84px;height:84px;border-radius:50%;overflow:hidden;background:var(--raised);border:2px solid var(--line);display:flex;align-items:center;justify-content:center}
+.avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.avatar.big{width:72px;height:72px;flex-shrink:0}
+.creator:hover .avatar,.creator:focus-visible .avatar{border-color:var(--accent)}
+.cname{font-size:13px;font-weight:600;max-width:92px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:16px 10px}
+.ythead{display:flex;align-items:center;gap:14px;margin-top:10px}
+.ythead .ptitle2{margin:0}
+.cologo.big{width:72px;height:72px}
+.vcard{flex:0 0 220px;width:220px;display:flex;flex-direction:column;gap:6px;background:none;border:0;padding:0;color:var(--text);text-align:right}
+.vcard.wide{width:auto}
+.vthumb.big{width:100%;height:auto;aspect-ratio:16/9;border-radius:12px;border:1px solid var(--line)}
+.vcard:hover .vthumb,.vcard:focus-visible .vthumb{border-color:var(--accent)}
+.vdur{position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,.75);color:#fff;font-size:12px;padding:1px 6px;border-radius:6px;direction:ltr;font-variant-numeric:tabular-nums}
+.vname{font-size:14px;font-weight:500;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.vmeta{font-size:12px;color:var(--muted)}
+.vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px 14px}
+@media (max-width:560px){.vgrid{grid-template-columns:1fr}}
+.state.small{padding:8px 0 16px;text-align:right;font-size:14px}
+
 /* التصفية، الشركات، صفحة العمل */
 .fchips{display:flex;gap:8px;overflow-x:auto;padding:14px 0 4px}
 .fchip{min-height:44px;padding:0 16px;border-radius:22px;border:1px solid var(--line);background:var(--surface);color:var(--text);white-space:nowrap;font-weight:500;display:inline-flex;align-items:center;gap:6px}
@@ -345,6 +368,14 @@ function demoTree() {
     });
     co[2].forEach(function (name, k) { var x = dir(name, mov); if (k !== 1) cover(x, ci * 5 + k + 3); vid(name, x, 98 + k * 9); });
   });
+  /* يوتيوب: قنوات صنّاع محتوى بأقسام فلوقات وتحديات */
+  var yt = dir('YouTube', rootKey); cover(yt, 2);
+  [['قناة الصقر', 4], ['قناة القوة', 7]].forEach(function (cr, ci) {
+    var c = dir(cr[0], yt); cover(c, cr[1]);
+    var vl = dir('فلوقات', c), ch = dir('تحديات', c);
+    for (var e = 1; e <= 4; e++) { vid('فلوق ' + e + ' - ' + cr[0], vl, 12 + e); nodes['demo-' + n].created = Date.now() - (ci * 10 + e) * 864e5; }
+    for (e = 1; e <= 3; e++) { vid('تحدي ' + e + ' - ' + cr[0], ch, 18 + e); nodes['demo-' + n].created = Date.now() - (ci * 7 + e * 2) * 864e5; }
+  });
   /* شركة بدون مجلدي مسلسلات/أفلام: النوع يُعرف تلقائياً */
   var w = dir('شركة الواحة', rootKey); cover(w, 9);
   var s1 = dir('مسلسل الواحة', w); cover(s1, 11); var q = dir('الموسم 1', s1); for (var e = 1; e <= 5; e++) vid('الحلقة ' + e, q, 40);
@@ -360,7 +391,7 @@ function loadKids(id) {
   function page(tok) {
     var q = "'" + id + "' in parents and trashed = false and (mimeType = '" + FOLDER_MIME + "' or mimeType contains 'video/' or mimeType contains 'image/')";
     var url = 'https://www.googleapis.com/drive/v3/files?pageSize=200&orderBy=folder,name_natural' +
-      '&fields=' + encodeURIComponent('nextPageToken,files(id,name,mimeType,thumbnailLink,videoMediaMetadata(durationMillis))') +
+      '&fields=' + encodeURIComponent('nextPageToken,files(id,name,mimeType,thumbnailLink,createdTime,videoMediaMetadata(durationMillis))') +
       '&supportsAllDrives=true&includeItemsFromAllDrives=true&q=' + encodeURIComponent(q) + (tok ? '&pageToken=' + encodeURIComponent(tok) : '');
     return fetch(url, { headers: { Authorization: 'Bearer ' + token } }).then(function (r) {
       if (r.status === 401) { sset('mk_token', null); throw new Error('انتهت الجلسة. اضغط «تسجيل الخروج» ثم سجّل الدخول من جديد.'); }
@@ -372,6 +403,7 @@ function loadKids(id) {
         if (f.mimeType.indexOf('image/') === 0) { imgs.push({ id: f.id, name: f.name, thumb: f.thumbnailLink || '' }); return; }
         var nn = node(f.id, f.name, f.mimeType === FOLDER_MIME, id, f.videoMediaMetadata ? Number(f.videoMediaMetadata.durationMillis) : 0);
         if (f.thumbnailLink && f.mimeType !== FOLDER_MIME) nn.thumb = f.thumbnailLink;
+        nn.created = Date.parse(f.createdTime) || 0;
         ids.push(f.id);
       });
       return d.nextPageToken ? page(d.nextPageToken) : ids;
@@ -416,8 +448,15 @@ var CAT = /^(مسلسلات|افلام|عربي|انجليزي|اجنبي|ترك
 var SEASON = /(season|موسم|جزء|part|^s\d+$)/;
 function bucketKind(f) { var t = norm(f.name); return SERIES_RE.test(t) ? 'series' : MOVIE_RE.test(t) ? 'movie' : ''; }
 /* مجلد عمل (مسلسل أو فيلم) أم مجلد تصنيف (شركة أو نوع أو لغة)؟ */
+/* يوتيوب: قناة يوتيوب ← قنوات صنّاع المحتوى ← أقسام (فلوقات، تحديات…) ← فيديوهات مستقلة */
+var YT_RE = /^(youtube|يوتيوب|يوتيوب)$/;
+function ytRoot(n) { var a = n.id === rootKey ? [] : trail(n.folder ? n.id : n.parent); return a.length && YT_RE.test(norm(a[0].name)) ? a[0] : null; }
+function inYT(n) { return !!ytRoot(n); }
+function ytCreator(v) { var a = trail(v.parent); return a.length > 1 && YT_RE.test(norm(a[0].name)) ? a[1] : null; }
+function videosUnder(f) { var out = []; (function walk(x) { kids(x.id).forEach(function (k) { if (k.folder) walk(k); else out.push(k); }); })(f); return out; }
 function isTitle(f) {
   if (!f || !f.folder || f.id === rootKey || !f.kids) return false;
+  if (inYT(f)) return false;
   if (CAT.test(norm(f.name))) return false;
   var k = kids(f.id);
   if (k.some(function (c) { return c.folder && (bucketKind(c) || CAT.test(norm(c.name))); })) return false;
@@ -501,6 +540,7 @@ function open(n) {
   playEpisode(n);
 }
 function playEpisode(v) {
+  if (inYT(v)) { ytPlay(v); return; }
   var t = titleOf(v), eps = t.folder ? allEpisodes(t) : [v], i = eps.indexOf(v);
   queue = i < 0 ? [v] : eps; play(i < 0 ? 0 : i);
 }
@@ -653,6 +693,7 @@ function renderHome(box) {
     var bk = bucketKind(top);
     if (bk) { if (kinds.indexOf(bk) >= 0) { var tt = titlesUnder(top, bk); if (tt.length) { row(box, top.name, tt, top); any = true; } } return; }
     if (isTitle(top)) { loose.push(top); return; }
+    if (YT_RE.test(norm(top.name))) { if (filter === 'all' && ytSection(box, top)) any = true; return; }
     var sec = el('section', 'company'), rows = 0;
     var hd = el('div', 'cohead'), hb = el('button', 'coname'); hb.type = 'button';
     var lp = poster(top); if (lp) { var li = el('span', 'cologo'); li.appendChild(img(lp)); hb.appendChild(li); }
@@ -714,8 +755,68 @@ function renderTitle(box, t) {
   var l = el('div', 'list'); g.eps.forEach(function (v) { l.appendChild(videoRow(v, false)); }); box.appendChild(l);
 }
 /* صفحة الشركة أو أي مجلد تصنيف */
+function vcard(v, wide) {
+  var b = el('button', 'vcard' + (wide ? ' wide' : '')); b.type = 'button';
+  var th = el('span', 'vthumb big'), p = poster(v); if (p) th.appendChild(img(p));
+  if (v.dur) th.appendChild(el('span', 'vdur', fmt(v.dur)));
+  if (done()[v.id]) { var ok = el('span', 'seenmark'); ok.appendChild(icon(CHECK, 12)); th.appendChild(ok); }
+  b.appendChild(th); b.appendChild(el('span', 'vname', clean(v.name)));
+  var cr = ytCreator(v); if (cr) b.appendChild(el('span', 'vmeta', cr.name));
+  b.onclick = function () { ytPlay(v); }; return b;
+}
+function ytPlay(v) { var list = kids(v.parent).filter(function (k) { return !k.folder; }); queue = list.length ? list : [v]; play(Math.max(0, queue.indexOf(v))); }
+function creatorChip(c) {
+  var b = el('button', 'creator'); b.type = 'button';
+  var av = el('span', 'avatar'), p = poster(c); if (p) av.appendChild(img(p)); else av.appendChild(el('span', 'chaninit', c.name.trim().charAt(0)));
+  b.appendChild(av); b.appendChild(el('span', 'cname', c.name)); b.onclick = function () { open(c); }; return b;
+}
+function latest(f, n) { return videosUnder(f).sort(function (a, b) { return (b.created || 0) - (a.created || 0); }).slice(0, n); }
+function ytSection(box, yt) {
+  var creators = kids(yt.id).filter(function (k) { return k.folder; });
+  if (!creators.length) return false;
+  var sec = el('section', 'company'), hd = el('div', 'cohead'), hb = el('button', 'coname'); hb.type = 'button';
+  var lp = poster(yt); if (lp) { var li = el('span', 'cologo'); li.appendChild(img(lp)); hb.appendChild(li); }
+  hb.appendChild(el('span', '', yt.name)); hb.appendChild(icon('M15 6l-6 6 6 6', 18)); hb.onclick = function () { open(yt); };
+  hd.appendChild(hb); sec.appendChild(hd);
+  var h = el('div', 'rowhead sub'); h.appendChild(el('h3', '', 'القنوات')); sec.appendChild(h);
+  var r = el('div', 'row creators'); creators.forEach(function (c) { r.appendChild(creatorChip(c)); }); sec.appendChild(r);
+  var lv = latest(yt, 20);
+  if (lv.length) { var h2 = el('div', 'rowhead sub'); h2.appendChild(el('h3', '', 'أحدث الفيديوهات')); sec.appendChild(h2); var r2 = el('div', 'row'); lv.forEach(function (v) { r2.appendChild(vcard(v)); }); sec.appendChild(r2); }
+  box.appendChild(sec); return true;
+}
+function renderYT(box, n) {
+  var head = el('div', 'ythead'), p = poster(n);
+  if (p) { var av = el('span', n.id === ytRoot(n).id ? 'cologo big' : 'avatar big'); av.appendChild(img(p)); head.appendChild(av); }
+  head.appendChild(el('h2', 'ptitle2', n.name)); box.appendChild(head);
+  if (n.id === ytRoot(n).id) {
+    var cs = kids(n.id).filter(function (k) { return k.folder; });
+    if (cs.length) { box.appendChild(el('h3', '', 'القنوات (' + cs.length + ')')); var g = el('div', 'cgrid'); cs.forEach(function (c) { g.appendChild(creatorChip(c)); }); box.appendChild(g); }
+    var lv = latest(n, 40);
+    if (lv.length) { box.appendChild(el('h3', '', 'أحدث الفيديوهات')); var g2 = el('div', 'vgrid'); lv.forEach(function (v) { g2.appendChild(vcard(v, true)); }); box.appendChild(g2); }
+    else box.appendChild(el('div', 'state', 'لا توجد فيديوهات بعد. ارفعها داخل أقسام كل قناة.'));
+    return;
+  }
+  var secs = kids(n.id).filter(function (k) { return k.folder; }), loose = kids(n.id).filter(function (k) { return !k.folder; }), shown = 0;
+  if (loose.length) { var g0 = el('div', 'vgrid'); loose.forEach(function (v) { g0.appendChild(vcard(v, true)); }); box.appendChild(g0); shown++; }
+  secs.forEach(function (s) { ensure(s.id); });
+  if (secs.length > 1) {
+    var sel = secs.filter(function (s) { return s.id === seasonSel[n.id]; })[0] || secs[0];
+    var tabs = el('div', 'fchips seasons'); tabs.setAttribute('role', 'group'); tabs.setAttribute('aria-label', 'الأقسام');
+    secs.forEach(function (s) { var b = el('button', 'fchip', s.name + (s.kids ? ' (' + videosUnder(s).length + ')' : '')); b.type = 'button'; b.setAttribute('aria-pressed', String(s === sel)); b.onclick = function () { seasonSel[n.id] = s.id; render(); }; tabs.appendChild(b); });
+    box.appendChild(tabs); secs = [sel];
+  }
+  secs.forEach(function (s) {
+    var vs = videosUnder(s);
+    if (secs.length === 1 && kids(n.id).filter(function (k) { return k.folder; }).length === 1) box.appendChild(el('h3', '', s.name + (s.kids ? ' (' + vs.length + ')' : '')));
+    if (!s.kids) { box.appendChild(el('div', 'state', 'جارٍ التحميل…')); return; }
+    if (!vs.length) { box.appendChild(el('div', 'state small', 'لا توجد فيديوهات في هذا القسم بعد.')); return; }
+    var g = el('div', 'vgrid'); vs.forEach(function (v) { g.appendChild(vcard(v, true)); }); box.appendChild(g); shown++;
+  });
+  if (!secs.length && !loose.length) box.appendChild(el('div', 'state', 'لا توجد فيديوهات بعد.'));
+}
 function renderFolder(box) {
   var n = nodes[cur];
+  if (n.kids && inYT(n)) { ensure(cur); renderYT(box, n); return; }
   if (!ensure(cur) && !n.kids) { box.appendChild(el('div', 'state', 'جارٍ التحميل…')); return; }
   if (isTitle(n)) { renderTitle(box, n); return; }
   var items = kids(cur), sub = items.filter(function (x) { return x.folder && bucketKind(x); });
