@@ -283,6 +283,8 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 /* ===== الإعداد: يمكن كتابة القيم هنا مباشرة بدل إدخالها من الصفحة ===== */
 var CONFIG = { clientId: '27864551624-00o9lnhs9l769fb3n2lpic1gt8d5dpv6.apps.googleusercontent.com', folder: '1DKkSPFMiBHOxoasN_sQkC9IDAtRTVZ8O' };
 var SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+/* تكبير شعار قناة بعينها داخل بطاقتها (اسم القناة كما في Drive: نسبة التكبير) */
+var LOGO_ZOOM = { 'سبيستون': 1.75 };
 var FOLDER_MIME = 'application/vnd.google-apps.folder';
 var TILE = ['#3A2F3F', '#2F3B35', '#40362A', '#2A3441', '#3B2E2E', '#2E3340'];
 
@@ -573,7 +575,7 @@ function channels(box) {
   cos.forEach(function (c) {
     var b = el('button', 'chan'); b.type = 'button';
     var lg = el('span', 'chanlogo'), p = poster(c);
-    if (p) lg.appendChild(img(p.thumb ? { id: p.id, name: p.name, thumb: p.thumb.replace(/=s\d+$/, '=s800') } : p)); else lg.appendChild(el('span', 'chaninit', c.name.trim().charAt(0)));
+    if (p) { var li = img(p.thumb ? { id: p.id, name: p.name, thumb: p.thumb.replace(/=s\d+$/, '=s800') } : p); var z = LOGO_ZOOM[c.name.trim()]; if (z) li.style.transform = 'scale(' + z + ')'; lg.appendChild(li); } else lg.appendChild(el('span', 'chaninit', c.name.trim().charAt(0)));
     b.appendChild(lg); b.appendChild(el('span', 'channame', c.name));
     b.onclick = function () { open(c); }; wrap.appendChild(b);
   });
