@@ -171,12 +171,13 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 /* شريط القنوات */
 .chanhead{font-size:20px;margin:18px 0 10px}
 .channels{display:flex;gap:16px;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x proximity}
-.chan{flex:0 0 120px;display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;padding:0;color:var(--text);scroll-snap-align:start}
-.chanlogo{width:112px;height:112px;border-radius:26px;background:var(--raised);border:1px solid var(--line);overflow:hidden;display:flex;align-items:center;justify-content:center}
-.chanlogo img{width:100%;height:100%;object-fit:contain;padding:10px}
-.chan:hover .chanlogo,.chan:focus-visible .chanlogo{border-color:var(--accent)}
+.chan{flex:0 0 160px;display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;padding:0;color:var(--text);scroll-snap-align:start}
+.chanlogo{width:160px;height:100px;border-radius:16px;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.chanlogo:not(:has(img)){background:var(--raised)}
+.chanlogo img{width:100%;height:100%;object-fit:cover;display:block}
+.chan:hover .chanlogo,.chan:focus-visible .chanlogo{outline:2px solid var(--accent);outline-offset:2px}
 .chaninit{font-size:44px;font-weight:700;color:var(--accent)}
-.channame{font-size:15px;font-weight:600;text-align:center;line-height:1.35;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.channame{font-size:15px;font-weight:600;text-align:center;line-height:1.35;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* التصفية، الشركات، صفحة العمل */
 .fchips{display:flex;gap:8px;overflow-x:auto;padding:14px 0 4px}
@@ -517,7 +518,7 @@ function setPoster(im, p) {
       .then(function (bl) { blobs[p.id] = URL.createObjectURL(bl); im.src = blobs[p.id]; })
       .catch(function () { im.remove(); });
   };
-  if (p.thumb) im.src = p.thumb.replace(/=s\d+$/, '=s480'); else im.onerror();
+  if (p.thumb) im.src = /=s(8\d\d)$/.test(p.thumb) ? p.thumb : p.thumb.replace(/=s\d+$/, '=s480'); else im.onerror();
 }
 function img(p, cls) { var im = document.createElement('img'); im.alt = ''; im.loading = 'lazy'; im.referrerPolicy = 'no-referrer'; if (cls) im.className = cls; setPoster(im, p); return im; }
 function card(n, sub) {
@@ -572,7 +573,7 @@ function channels(box) {
   cos.forEach(function (c) {
     var b = el('button', 'chan'); b.type = 'button';
     var lg = el('span', 'chanlogo'), p = poster(c);
-    if (p) lg.appendChild(img(p)); else lg.appendChild(el('span', 'chaninit', c.name.trim().charAt(0)));
+    if (p) lg.appendChild(img(p.thumb ? { id: p.id, name: p.name, thumb: p.thumb.replace(/=s\d+$/, '=s800') } : p)); else lg.appendChild(el('span', 'chaninit', c.name.trim().charAt(0)));
     b.appendChild(lg); b.appendChild(el('span', 'channame', c.name));
     b.onclick = function () { open(c); }; wrap.appendChild(b);
   });
