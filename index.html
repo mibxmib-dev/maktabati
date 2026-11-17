@@ -1018,7 +1018,7 @@ $('btnSignin').onclick = function () {
   sset('mk_state', state); Intro.stop();
   location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + [
     'client_id=' + encodeURIComponent(clientId), 'redirect_uri=' + encodeURIComponent(REDIRECT),
-    'response_type=token', 'scope=' + encodeURIComponent(SCOPE), 'include_granted_scopes=true', 'state=' + encodeURIComponent(state)
+    'response_type=token', 'scope=' + encodeURIComponent(SCOPE), 'include_granted_scopes=true', 'prompt=select_account', 'state=' + encodeURIComponent(state)
   ].join('&');
 };
 function useToken(t, exp) { token = t; demo = false; sset('mk_token', t); sset('mk_exp', String(exp)); openLibrary(); }
