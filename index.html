@@ -469,6 +469,8 @@ function videosUnder(f) { var out = []; (function walk(x) { kids(x.id).forEach(f
 function isTitle(f) {
   if (!f || !f.folder || f.id === rootKey || !f.kids) return false;
   if (inYT(f)) return false;
+  /* مجلد في أول مستوى بلا فيديوهات مباشرة = قناة، حتى لو كانت فارغة */
+  if (f.parent === rootKey && !kids(f.id).some(function (c) { return !c.folder; })) return false;
   if (CAT.test(norm(f.name))) return false;
   var k = kids(f.id);
   if (k.some(function (c) { return c.folder && (bucketKind(c) || CAT.test(norm(c.name))); })) return false;
