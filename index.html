@@ -75,9 +75,13 @@ button{cursor:pointer}
   .neon{font-size:21cqw;margin-top:-6%}
   .tvlight{left:8%;top:34%;width:84%;height:34%}
   #signin{--sw:min(100vw,calc(100vh * .5581));--sw:min(100vw,calc(100svh * .5581));padding-bottom:0}
-  .login{position:absolute;z-index:6;left:0;right:0;margin:0 auto;top:calc(var(--sw) * 1.7917 * .045);gap:12px;text-shadow:0 1px 8px rgba(0,0,0,.8)}
-  .login .lead{font-size:15px;line-height:1.55}
-  .login .note{font-size:12px}
+  /* المقاسات تتبع عرض المشهد، فتبقى متناسبة حتى لو فتح المتصفح بوضع سطح المكتب */
+  .login{position:absolute;z-index:6;left:0;right:0;margin:0 auto;width:calc(var(--sw) * .88);top:calc(var(--sw) * 1.7917 * .045);font-size:max(15px,calc(var(--sw) * .04));gap:.8em;text-shadow:0 1px 8px rgba(0,0,0,.8)}
+  .login .lead{font-size:1em;line-height:1.55}
+  .login .note{font-size:.8em}
+  .login .btn{font-size:1em;min-height:3.3em;border-radius:.8em}
+  .login .msg{font-size:.9em}
+  #signin .chip{font-size:max(13px,calc(var(--sw) * .034));min-height:max(44px,calc(var(--sw) * .11));padding:0 1.1em;border-radius:2em}
 }
 
 /* الأزرار والنماذج */
