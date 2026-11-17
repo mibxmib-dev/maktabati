@@ -28,9 +28,11 @@ button{cursor:pointer}
 /* شاشة الافتتاح */
 #signin{position:relative;min-height:100%;background:#0E0606;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow-x:hidden;padding:24px 0 32px}
 .scene{position:relative;flex-shrink:0;width:clamp(520px,min(100vw,calc((100vh - 200px) * 1.7917)),1376px);aspect-ratio:1376/768;container-type:inline-size;overflow:hidden;-webkit-mask-image:linear-gradient(#000 88%,transparent);mask-image:linear-gradient(#000 88%,transparent)}
-@media (max-aspect-ratio:1/1){.scene{width:175vw}}
+
 .scene>*{position:absolute}
-.bgimg{inset:0;width:100%;height:100%;display:block}
+.bgimg{inset:0}
+.bgimg img{width:100%;height:100%;display:block}
+.title img{width:100%;display:block}
 .dim{inset:0;background:radial-gradient(ellipse 30% 40% at 49.5% 56%,rgba(8,3,3,.55),rgba(5,2,2,.93));transition:opacity 2.2s ease}
 .lit .dim{opacity:0}
 .tvlight{left:22%;top:22%;width:56%;height:70%;background:radial-gradient(closest-side,rgba(255,196,110,.30),rgba(255,160,80,.08) 60%,transparent);mix-blend-mode:screen;opacity:0;pointer-events:none}
@@ -63,6 +65,17 @@ button{cursor:pointer}
 @keyframes buzz{0%,100%{opacity:1}47%{opacity:1}48%{opacity:.82}49%{opacity:1}86%{opacity:.93}87%{opacity:1}}
 @keyframes breathe{0%,100%{opacity:.55}50%{opacity:1}}
 @media (prefers-reduced-motion:reduce){.neon-on .neon{animation:none;opacity:1}.neon-on .tvlight{animation:none}.power{animation:none;opacity:1}.lit .title{transition:clip-path .01s,filter .01s}}
+
+/* الجوال بالطول: صورة طولية بمواضع خاصة، والريموت يبقى فوق الشاشة */
+@media (max-aspect-ratio:1/1){
+  #signin{justify-content:flex-start;padding-top:0}
+  .scene{width:min(100vw,calc(100vh * .5581));width:min(100vw,calc(100svh * .5581));aspect-ratio:768/1376;-webkit-mask-image:linear-gradient(#000 78%,transparent);mask-image:linear-gradient(#000 78%,transparent)}
+  .title{left:18.23%;top:31.98%;width:65.1%}
+  .tv{left:35.29%;top:46.29%;width:27.34%;height:11.99%;border-radius:6%/9%;clip-path:polygon(0 0,100% 0,100% 100%,97.6% 100%,97.6% 88.5%,95.8% 85.2%,15.4% 85.2%,13.6% 88.5%,13.6% 100%,0 100%)}
+  .neon{font-size:21cqw;margin-top:-6%}
+  .tvlight{left:8%;top:34%;width:84%;height:34%}
+  .login{position:relative;z-index:2;margin-top:-72px}
+}
 
 /* الأزرار والنماذج */
 .btn{min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--raised);color:var(--text);padding:0 18px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:10px}
@@ -134,10 +147,10 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 <section id="signin">
     <button class="chip" id="btnSkip" type="button">تخطي</button>
   <div class="scene" id="scene">
-    <img class="bgimg" src="assets/scene.webp" alt="">
+    <picture class="bgimg"><source media="(max-aspect-ratio: 1/1)" srcset="assets/scene-p.webp"><img src="assets/scene.webp" alt=""></picture>
     <div class="dim"></div>
     <div class="tvlight"></div>
-    <img class="title" src="assets/title.webp" alt="">
+    <picture class="title"><source media="(max-aspect-ratio: 1/1)" srcset="assets/title-p.webp"><img src="assets/title.webp" alt=""></picture>
     <div class="tv" id="tv">
       <canvas id="noise" width="160" height="120"></canvas>
       <div class="neon" aria-hidden="true">90's<br>TV</div>
