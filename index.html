@@ -4,13 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>مكتبتي</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap">
+<title>home movie</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&family=Pacifico&family=Tilt+Neon&display=swap">
 <style>
 :root{
   /* عالم بصري واحد داكن: شريط علوي، تبويبات للأقسام، شبكة مجلدات ثم قائمة تشغيل */
-  --ground:#0F1217; --surface:#171C24; --raised:#222935; --line:#2D3542;
-  --text:#F2F0EA; --muted:#A9B0BC; --accent:#F2B45A; --on-accent:#1A1408; --warn:#F0A08A;
+  /* هوية home movie: ستارة سينما داكنة، كريمي دافئ كضوء الشاشة */
+  --ground:#120A0A; --surface:#1C1312; --raised:#291C1A; --line:#3B2A27;
+  --text:#F6EEE3; --muted:#BBA99B; --accent:#F4C27A; --on-accent:#2A1606; --warn:#F3A58F;
+  --script:'Pacifico',cursive;
   --font:'IBM Plex Sans Arabic','Segoe UI',Tahoma,sans-serif;
   color-scheme:dark;
 }
@@ -23,16 +25,54 @@ button{cursor:pointer}
 [hidden]{display:none!important}
 .wrap{max-width:1040px;margin:0 auto;padding:0 20px}
 
-/* الدخول */
-#signin{min-height:100%;display:flex;align-items:center;justify-content:center;padding:32px 20px}
-.card{width:100%;max-width:420px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:28px 24px;display:flex;flex-direction:column;gap:16px}
-.card h1{margin:0;font-size:28px;line-height:1.3}
-.card p{margin:0;color:var(--muted);font-size:14px}
+/* شاشة الافتتاح */
+#signin{position:relative;min-height:100%;background:#0E0606;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow-x:hidden;padding:24px 0 32px}
+.scene{position:relative;flex-shrink:0;width:clamp(520px,min(100vw,calc((100vh - 200px) * 1.7917)),1376px);aspect-ratio:1376/768;container-type:inline-size;overflow:hidden;cursor:pointer;-webkit-mask-image:linear-gradient(#000 88%,transparent);mask-image:linear-gradient(#000 88%,transparent)}
+@media (max-aspect-ratio:1/1){.scene{width:175vw}}
+.scene>*{position:absolute}
+.bgimg{inset:0;width:100%;height:100%;display:block}
+.dim{inset:0;background:radial-gradient(ellipse 30% 40% at 49.5% 56%,rgba(8,3,3,.55),rgba(5,2,2,.93));transition:opacity 2.2s ease}
+.lit .dim{opacity:0}
+.tvlight{left:22%;top:22%;width:56%;height:70%;background:radial-gradient(closest-side,rgba(255,196,110,.30),rgba(255,160,80,.08) 60%,transparent);mix-blend-mode:screen;opacity:0;pointer-events:none}
+.neon-on .tvlight{opacity:1;animation:buzz 5s infinite}
+.title{left:24.71%;top:12.37%;width:51.6%;clip-path:inset(0 100% 0 0);filter:drop-shadow(0 0 0 rgba(255,190,110,0))}
+.lit .title{transition:clip-path 1.9s cubic-bezier(.6,.05,.3,1) .5s,filter 1.2s ease 2.2s;clip-path:inset(0 0 0 0);filter:drop-shadow(0 0 1.4cqw rgba(255,190,110,.45))}
+.tv{left:38.15%;top:40.23%;width:21.95%;height:30.99%;background:#040404;border-radius:9%/12%;overflow:hidden;container-type:inline-size;display:flex;align-items:center;justify-content:center}
+.tv::before{content:"";position:absolute;inset:0;background:#fff;transform:scale(0,.004);opacity:0;z-index:3}
+.tv.boot::before{animation:crt .55s ease-out forwards}
+.tv canvas{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity .25s}
+.tv.static canvas{opacity:.85}
+.neon{position:relative;z-index:2;font-family:'Tilt Neon',sans-serif;direction:ltr;text-align:center;font-size:23cqw;line-height:1.02;color:#FFD98C;opacity:0;text-shadow:0 0 1cqw #fff3c4,0 0 3cqw #ffbf55,0 0 7cqw #ff9d2e,0 0 14cqw #ff8a1e}
+.neon-on .neon{animation:flick 1.6s steps(1) forwards,buzz 5s 1.6s infinite}
+.tv::after{content:"";position:absolute;inset:0;z-index:4;pointer-events:none;background:repeating-linear-gradient(rgba(255,255,255,.035) 0 1px,transparent 1px 3px),radial-gradient(ellipse at 50% 45%,transparent 55%,rgba(0,0,0,.65))}
+.power{position:relative;z-index:5;background:none;border:0;color:#CDBBA9;font-family:var(--font);font-size:max(12px,7.5cqw);display:flex;flex-direction:column;align-items:center;gap:4cqw;min-height:44px;padding:8px;animation:breathe 2.4s ease-in-out infinite}
+.power svg{width:max(22px,17cqw);height:max(22px,17cqw)}
+.started .power{display:none}
+.chip{position:absolute;top:16px;z-index:6;min-height:44px;padding:0 14px;border-radius:22px;border:1px solid rgba(255,255,255,.18);background:rgba(10,4,4,.55);color:#EADCCB;font-family:var(--font);font-size:13px;display:none;align-items:center;gap:6px;backdrop-filter:blur(4px)}
+#signin.started .chip{display:inline-flex}
+#btnSkip{left:16px}
+#btnSound{right:16px;width:44px;padding:0;justify-content:center}
+#signin.done #btnSkip{display:none}
+.login{width:min(440px,calc(100% - 32px));display:flex;flex-direction:column;gap:14px;margin-top:4px;opacity:0;transform:translateY(14px);visibility:hidden;transition:opacity .9s ease,transform .9s ease,visibility 0s .9s}
+.done .login,#signin.done .login{opacity:1;transform:none;visibility:visible;transition:opacity .9s ease,transform .9s ease}
+.login h1{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.login .lead{margin:0;text-align:center;font-size:16px;color:var(--text)}
+.login .note{margin:0;text-align:center;font-size:13px;color:var(--muted)}
+.btn.google{min-height:52px;font-size:16px}
+@keyframes crt{0%{opacity:1;transform:scale(0,.004)}35%{opacity:1;transform:scale(1,.004)}70%{opacity:.9;transform:scale(1,1)}100%{opacity:0;transform:scale(1,1)}}
+@keyframes flick{0%{opacity:0}8%{opacity:1}12%{opacity:.1}20%{opacity:.9}24%{opacity:.2}38%{opacity:1}42%{opacity:.35}50%,100%{opacity:1}}
+@keyframes buzz{0%,100%{opacity:1}47%{opacity:1}48%{opacity:.82}49%{opacity:1}86%{opacity:.93}87%{opacity:1}}
+@keyframes breathe{0%,100%{opacity:.55}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.neon-on .neon{animation:none;opacity:1}.neon-on .tvlight{animation:none}.power{animation:none;opacity:1}.lit .title{transition:clip-path .01s,filter .01s}}
+
+/* الأزرار والنماذج */
 .btn{min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--raised);color:var(--text);padding:0 18px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:10px}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
 .btn.small{min-height:44px;font-size:14px}
 .msg{font-size:14px;color:var(--warn);background:#2A1F1C;border:1px solid #4A322C;border-radius:10px;padding:10px 12px}
 details{border-top:1px solid var(--line);padding-top:12px}
+.brand{display:inline-flex;align-items:center}
+.top h1 .brand{font-family:var(--script);font-weight:400;font-size:24px;color:var(--accent);line-height:1}
 summary{cursor:pointer;font-size:14px;color:var(--muted);min-height:32px}
 .field{display:flex;flex-direction:column;gap:6px;margin-top:12px}
 .field label{font-size:13px;color:var(--muted)}
@@ -93,13 +133,29 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 <body>
 
 <section id="signin">
-  <div class="card">
-    <h1>مكتبتي</h1>
-    <p>أفلامك ومسلسلاتك من مجلدك في Google Drive، تُشغَّل مباشرة بدون تحميل.</p>
-    <button class="btn primary" id="btnSignin" type="button">تسجيل الدخول بحساب Google</button>
+    <button class="chip" id="btnSkip" type="button">تخطي</button>
+    <button class="chip" id="btnSound" type="button" aria-label="كتم الصوت"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"></path><path id="waves" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"></path></svg></button>
+  <div class="scene" id="scene">
+    <img class="bgimg" src="assets/scene.webp" alt="">
+    <div class="dim"></div>
+    <div class="tvlight"></div>
+    <img class="title" src="assets/title.webp" alt="">
+    <div class="tv" id="tv">
+      <canvas id="noise" width="160" height="120"></canvas>
+      <div class="neon" aria-hidden="true">90's<br>TV</div>
+      <button class="power" id="btnPower" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v8"></path><path d="M6.3 7.2a8 8 0 1 0 11.4 0"></path></svg>
+        اضغط لتشغيل التلفاز
+      </button>
+    </div>
+  </div>
+  <div class="login">
+    <h1>home movie</h1>
+    <p class="lead">أفلامك ومسلسلاتك في مكان واحد، تُعرض مباشرة من مجلدك.</p>
+    <button class="btn primary google" id="btnSignin" type="button">الدخول بحساب Google</button>
     <button class="btn" id="btnDemo" type="button">عرض تجريبي ببيانات وهمية</button>
     <div class="msg" id="signinMsg" hidden></div>
-    <p>يفتح الزر نافذة Google الرسمية. كلمة المرور تُكتب هناك فقط، وهذه الصفحة تطلب صلاحية القراءة فقط من Drive، لعرض الأسماء وصور الأغلفة.</p>
+    <p class="note">ينقلك الزر لصفحة Google الرسمية. الصفحة تقرأ ملفاتك فقط ولا تعدّل شيئاً.</p>
     <details id="setup">
       <summary>إعداد الربط (مرة واحدة)</summary>
       <div class="field"><label for="inClient">معرّف العميل OAuth Client ID</label><input id="inClient" autocomplete="off" placeholder="xxxxxxxx.apps.googleusercontent.com"></div>
@@ -111,7 +167,7 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 
 <div id="library" hidden>
   <header class="top"><div class="wrap">
-    <h1><button id="btnHome" type="button">مكتبتي</button></h1>
+    <h1><button id="btnHome" type="button" aria-label="الرئيسية"><span class="brand">home movie</span></button></h1>
     <span class="badge" id="demoBadge" hidden>عرض تجريبي</span>
     <input class="search" id="q" type="search" autocomplete="off" placeholder="ابحث عن فيلم أو مسلسل أو حلقة" aria-label="بحث في المكتبة">
     <button class="btn small" id="btnRefresh" type="button">تحديث</button>
@@ -160,14 +216,14 @@ function hue(t) { var h = 0; for (var i = 0; i < t.length; i++) h = (h * 31 + t.
 var clientId = CONFIG.clientId || store('mk_client') || '';
 var rootId = folderId(CONFIG.folder || store('mk_folder') || '');
 $('inClient').value = clientId; $('inFolder').value = CONFIG.folder || store('mk_folder') || '';
-if (CONFIG.clientId && CONFIG.folder) { $('setup').hidden = true; $('btnDemo').hidden = true; }
+if (CONFIG.clientId && CONFIG.folder) { $('setup').hidden = true; $('btnDemo').hidden = onSite(); }
 
 var token = null, demo = false, tokenClient = null;
 var nodes = {}, rootKey = '', crawlGen = 0, crawling = false, fatal = '';
 var view = 'home', cur = '', query = '';
 var queue = [], qIndex = 0, timer = null;
 
-function showMsg(t) { var m = $('signinMsg'); m.textContent = t; m.hidden = !t; }
+function showMsg(t) { var m = $('signinMsg'); m.textContent = t; m.hidden = !t; if (t) { $('signin').classList.add('done'); } }
 function node(id, name, folder, parent, dur) { return nodes[id] = { id: id, name: name, folder: folder, parent: parent, dur: dur || 0, kids: folder ? null : undefined }; }
 
 /* ===== بيانات العرض التجريبي ===== */
@@ -410,6 +466,102 @@ $('btnClose').onclick = function () { $('stage').textContent = ''; $('player').h
 $('btnPrev').onclick = function () { if (qIndex > 0) play(qIndex - 1); };
 $('btnNext').onclick = function () { if (qIndex < queue.length - 1) play(qIndex + 1); };
 
+
+/* ===== شاشة الافتتاح: تشغيل التلفاز، تشويش، نيون، إضاءة، ثم العنوان ===== */
+var Intro = (function () {
+  var sc = $('signin'), scene = $('scene'), tv = $('tv'), cv = $('noise'), cx = cv.getContext('2d');
+  var AC = null, master = null, musicOn = false, nextBar = 0, barTimer = null, muted = false, noiseRaf = 0, started = false;
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, reduce ? Math.min(ms, 150) : ms); }); }
+  function audio() {
+    if (AC) return AC;
+    try { AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 0.6; master.connect(AC.destination); } catch (e) { AC = null; }
+    return AC;
+  }
+  function env(g, t, a, peak, d) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); }
+  function tone(type, f, t, a, peak, d, dest, detune) {
+    var o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.value = f; if (detune) o.detune.value = detune;
+    env(g, t, a, peak, d); o.connect(g); g.connect(dest || master); o.start(t); o.stop(t + a + d + 0.05);
+  }
+  function noiseBuf(sec) { var b = AC.createBuffer(1, AC.sampleRate * sec, AC.sampleRate), d = b.getChannelData(0); for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; }
+  function thunk() {
+    if (!audio()) return; var t = AC.currentTime;
+    tone('sine', 62, t, 0.005, 0.7, 0.4); tone('sine', 7600, t + 0.05, 0.02, 0.012, 1.1);
+    var n = AC.createBufferSource(), g = AC.createGain(), f = AC.createBiquadFilter(); n.buffer = noiseBuf(0.05); f.type = 'highpass'; f.frequency.value = 1500;
+    env(g, t, 0.002, 0.25, 0.04); n.connect(f); f.connect(g); g.connect(master); n.start(t);
+  }
+  function hiss(sec) {
+    if (!AC) return; var t = AC.currentTime, n = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+    n.buffer = noiseBuf(sec); f.type = 'bandpass'; f.frequency.value = 3200; f.Q.value = 0.6;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.16, t + 0.05); g.gain.setValueAtTime(0.16, t + sec - 0.25); g.gain.exponentialRampToValueAtTime(0.0001, t + sec);
+    n.connect(f); f.connect(g); g.connect(master); n.start(t);
+  }
+  /* موسيقى هادئة بطابع التسعينات: أوتار ناعمة، باص، وأجراس مع صدى */
+  var BPM = 84, BAR = 240 / BPM, chords = [[48, 55, 64, 71], [45, 52, 60, 67], [41, 48, 57, 64], [43, 50, 59, 62]];
+  var mel = [[76, 79, 83, 79], [72, 76, 79, 76], [69, 72, 76, 77], [71, 74, 79, 74]];
+  function hz(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+  var bus, lp, delay, fb;
+  function setupBus() {
+    bus = AC.createGain(); bus.gain.value = 0; lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1700;
+    delay = AC.createDelay(); delay.delayTime.value = BAR / 8 * 3; fb = AC.createGain(); fb.gain.value = 0.32;
+    bus.connect(lp); lp.connect(master); delay.connect(fb); fb.connect(delay); delay.connect(lp);
+    bus.gain.setValueAtTime(0, AC.currentTime); bus.gain.linearRampToValueAtTime(0.5, AC.currentTime + 3);
+  }
+  function scheduleBar(i, t) {
+    var c = chords[i % 4], m = mel[i % 4], beat = BAR / 4;
+    c.slice(1).forEach(function (n) { tone('sawtooth', hz(n), t, 0.6, 0.035, BAR, bus, -7); tone('triangle', hz(n), t, 0.6, 0.05, BAR, bus, 6); });
+    tone('triangle', hz(c[0] - 12), t, 0.02, 0.32, beat * 1.6, bus); tone('triangle', hz(c[0] - 12), t + beat * 2, 0.02, 0.26, beat * 1.6, bus);
+    m.forEach(function (n, k) {
+      var tt = t + k * beat + (k % 2 ? beat / 2 : 0);
+      tone('sine', hz(n), tt, 0.005, 0.12, 0.9, bus); tone('sine', hz(n + 12), tt, 0.005, 0.03, 0.5, bus);
+      var g = AC.createGain(); g.gain.value = 0.5; var o = AC.createOscillator(); o.type = 'sine'; o.frequency.value = hz(n);
+      var e = AC.createGain(); env(e, tt, 0.005, 0.07, 0.7); o.connect(e); e.connect(delay); o.start(tt); o.stop(tt + 0.8);
+    });
+    var hh = AC.createBufferSource(), hf = AC.createBiquadFilter(), hg = AC.createGain(); hh.buffer = noiseBuf(0.05); hf.type = 'highpass'; hf.frequency.value = 7000;
+    hh.connect(hf); hf.connect(hg); hg.connect(bus);
+    for (var k = 0; k < 8; k++) { var th = t + k * beat / 2; hg.gain.setValueAtTime(k % 2 ? 0.05 : 0.025, th); hg.gain.exponentialRampToValueAtTime(0.0001, th + 0.04); }
+    hh.loop = true; hh.start(t); hh.stop(t + BAR);
+  }
+  var barIndex = 0;
+  function music() {
+    if (!AC || musicOn) return; musicOn = true; setupBus(); nextBar = AC.currentTime + 0.1;
+    (function pump() {
+      while (nextBar < AC.currentTime + 1.5) { scheduleBar(barIndex++, nextBar); nextBar += BAR; }
+      barTimer = setTimeout(pump, 400);
+    })();
+  }
+  function stopMusic() {
+    clearTimeout(barTimer); if (!AC) return;
+    try { master.gain.cancelScheduledValues(AC.currentTime); master.gain.setTargetAtTime(0, AC.currentTime, 0.4); setTimeout(function () { try { AC.close(); } catch (e) {} AC = null; }, 1600); } catch (e) {}
+  }
+  function drawNoise() {
+    var img = cx.createImageData(160, 120), d = img.data;
+    for (var i = 0; i < d.length; i += 4) { var v = Math.random() * 255 | 0; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+    cx.putImageData(img, 0, 0); noiseRaf = requestAnimationFrame(drawNoise);
+  }
+  function finish() { sc.classList.add('started', 'lit', 'neon-on', 'done'); tv.classList.remove('static'); cancelAnimationFrame(noiseRaf); }
+  async function start() {
+    if (started) return; started = true; sc.classList.add('started');
+    if (!muted) thunk();
+    tv.classList.add('boot'); await wait(520);
+    tv.classList.add('static'); if (!reduce) drawNoise(); hiss(1.1); await wait(1100);
+    cancelAnimationFrame(noiseRaf); tv.classList.remove('static'); await wait(200);
+    sc.classList.add('neon-on'); await wait(900);
+    music(); await wait(500);
+    sc.classList.add('lit'); await wait(3300);
+    sc.classList.add('done');
+  }
+  $('btnPower').onclick = function (e) { e.stopPropagation(); start(); };
+  scene.onclick = function () { start(); };
+  $('btnSkip').onclick = function (e) { e.stopPropagation(); if (!AC && !muted) { audio(); music(); } finish(); };
+  $('btnSound').onclick = function (e) {
+    e.stopPropagation(); muted = !muted;
+    if (master) master.gain.setTargetAtTime(muted ? 0 : 0.6, AC.currentTime, 0.1);
+    $('waves').style.display = muted ? 'none' : ''; this.setAttribute('aria-label', muted ? 'تشغيل الصوت' : 'كتم الصوت');
+  };
+  return { stop: stopMusic };
+})();
+
 /* ===== تسجيل الدخول عبر Google (تحويل للصفحة الرسمية ثم العودة، بلا نوافذ منبثقة) ===== */
 var REDIRECT = 'https://mibxmib-dev.github.io/maktabati/';
 function sget(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
@@ -420,7 +572,7 @@ $('btnSignin').onclick = function () {
   if (!clientId || !rootId) { $('setup').hidden = false; $('setup').open = true; showMsg('أكمل «إعداد الربط» أولاً: معرّف العميل ورابط المجلد الرئيسي.'); return; }
   if (!onSite()) { showMsg('تسجيل الدخول لا يعمل في هذه المعاينة. افتح الموقع: ' + REDIRECT); return; }
   var state = Math.random().toString(36).slice(2) + Date.now().toString(36);
-  sset('mk_state', state);
+  sset('mk_state', state); Intro.stop();
   location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + [
     'client_id=' + encodeURIComponent(clientId), 'redirect_uri=' + encodeURIComponent(REDIRECT),
     'response_type=token', 'scope=' + encodeURIComponent(SCOPE), 'include_granted_scopes=true', 'state=' + encodeURIComponent(state)
@@ -440,7 +592,7 @@ function useToken(t, exp) { token = t; demo = false; sset('mk_token', t); sset('
   var t = sget('mk_token'), e = Number(sget('mk_exp') || 0);
   if (t && e > Date.now()) { token = t; demo = false; openLibrary(); }
 })();
-$('btnDemo').onclick = function () { demo = true; token = null; openLibrary(); };
+$('btnDemo').onclick = function () { Intro.stop(); demo = true; token = null; openLibrary(); };
 $('btnSave').onclick = function () {
   clientId = $('inClient').value.trim(); rootId = folderId($('inFolder').value);
   store('mk_client', clientId); store('mk_folder', $('inFolder').value.trim());
