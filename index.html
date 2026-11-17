@@ -165,6 +165,7 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 .pep .vthumb{width:132px;height:74px;border:2px solid transparent}
 .pep[aria-current] .vthumb{border-color:var(--accent)}
 .pep[aria-current]{color:var(--text)}
+.pseason{flex:0 0 auto;align-self:center;writing-mode:vertical-rl;transform:rotate(180deg);font-size:12px;font-weight:700;color:var(--accent);padding:0 2px;border-inline-start:1px solid var(--line)}
 .pepname{font-size:12px;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .seenmark{position:absolute;top:4px;left:4px;width:20px;height:20px;border-radius:10px;background:var(--accent);color:var(--on-accent);display:flex;align-items:center;justify-content:center}
 @media (max-height:520px){.pstrip{display:none}.pctl{padding:6px 12px}}
@@ -488,6 +489,16 @@ function disp(v) {
   if (t !== v && titleKind(t) === 'series') { var g = groups(t).filter(function (x) { return x.eps.indexOf(v) >= 0; })[0]; if (g) return 'الحلقة ' + (g.eps.indexOf(v) + 1); }
   return tidy(clean(v.name)) || clean(v.name);
 }
+function dispSeason(v) {
+  var t = titleOf(v);
+  if (t === v || !t.folder) return disp(v);
+  var gs = groups(t);
+  if (gs.length < 2) return disp(v);
+  var i = epInfo(v.name);
+  if (i && i.s) return 'الموسم ' + i.s + ' · الحلقة ' + i.e;
+  var g = gs.filter(function (x) { return x.eps.indexOf(v) >= 0; })[0];
+  return (g ? g.name + ' · ' : '') + disp(v);
+}
 function dispLong(v) {
   var i = epInfo(v.name), t = titleOf(v);
   if (t !== v && i) return (i.s ? 'الموسم ' + i.s + ' · ' : '') + 'الحلقة ' + i.e;
@@ -649,7 +660,7 @@ function card(n, sub) {
   b.onclick = function () { open(n); }; return b;
 }
 function contCard(t) {
-  var r = resumePoint(t), b = card(t, t.folder && titleKind(t) === 'series' ? (r.next ? 'التالي: ' : 'تابع: ') + disp(r.ep) : 'تابع المشاهدة');
+  var r = resumePoint(t), b = card(t, t.folder && titleKind(t) === 'series' ? (r.next ? 'التالي: ' : 'تابع: ') + dispSeason(r.ep) : 'تابع المشاهدة');
   var pl = el('span', 'play mini over'); pl.appendChild(icon('M8 5v14l11-7z', 14, true)); b.querySelector('.tile').appendChild(pl);
   var pb = progressBar(r.ep); if (pb) b.querySelector('.tile').appendChild(pb);
   b.onclick = function () { playEpisode(r.ep); }; return b;
@@ -815,7 +826,7 @@ function renderTitle(box, t) {
   if (r.ep) {
     var pb = el('button', 'btn primary'); pb.type = 'button'; pb.appendChild(icon('M8 5v14l11-7z', 18, true));
     var at = posOf(r.ep), from = at ? ' من ' + clock(at.t) : '';
-    pb.appendChild(document.createTextNode(kind === 'series' ? (r.started ? (r.next ? 'شاهد التالي: ' : 'تابع: ') + disp(r.ep) + from : 'شاهد ' + disp(r.ep)) : (at ? 'تابع' + from : r.started ? 'تابع المشاهدة' : 'تشغيل')));
+    pb.appendChild(document.createTextNode(kind === 'series' ? (r.started ? (r.next ? 'شاهد التالي: ' : 'تابع: ') + dispSeason(r.ep) + from : 'شاهد ' + dispSeason(r.ep)) : (at ? 'تابع' + from : r.started ? 'تابع المشاهدة' : 'تشغيل')));
     pb.onclick = function () { playEpisode(r.ep); }; acts.appendChild(pb);
   }
   var on = isFav(t.id), fb = el('button', 'btn favbtn'); fb.type = 'button'; fb.setAttribute('aria-pressed', String(on));
@@ -989,7 +1000,7 @@ function startVideo(v, st) {
 function upNext() {
   if (qIndex >= queue.length - 1) return;
   var st = $('stage'), nx = queue[qIndex + 1], n = 5, box = el('div', 'resume');
-  box.appendChild(el('p', 'rtitle', 'التالي: ' + dispLong(nx)));
+  box.appendChild(el('p', 'rtitle', 'التالي: ' + dispSeason(nx)));
   var cnt = el('p', 'rsub', 'يبدأ بعد ' + n + ' ثوانٍ'); box.appendChild(cnt);
   var acts = el('div', 'racts');
   var b1 = el('button', 'btn primary', 'شغّل الآن'); b1.type = 'button';
@@ -1006,7 +1017,7 @@ function play(i) {
   qIndex = i; var v = queue[i], st = $('stage'), t = titleOf(v), d = done();
   st.textContent = '';
   $('pseries').textContent = t !== v ? t.name : '';
-  $('ptitle').textContent = dispLong(v);
+  $('ptitle').textContent = dispSeason(v);
   var multi = queue.length > 1;
   $('btnPrev').hidden = $('btnNext').hidden = !multi; $('pstrip').hidden = !multi;
   $('btnPrev').disabled = i === 0; $('btnNext').disabled = i === queue.length - 1;
@@ -1015,7 +1026,9 @@ function play(i) {
   $('pFav').firstChild.setAttribute('fill', fv ? 'currentColor' : 'none');
   remember(v);
   var strip = $('pstrip'); strip.textContent = '';
+  var lastG = null, gsQ = multi ? groups(titleOf(queue[0])) : [];
   if (multi) queue.forEach(function (e, k) {
+    if (gsQ.length > 1) { var g = gsQ.filter(function (x) { return x.eps.indexOf(e) >= 0; })[0]; if (g && g !== lastG) { lastG = g; strip.appendChild(el('span', 'pseason', g.name)); } }
     var b = el('button', 'pep'); b.type = 'button'; if (k === i) b.setAttribute('aria-current', 'true');
     var th = el('span', 'vthumb'), pic = poster(e); if (pic) th.appendChild(img(pic));
     if (d[e.id]) { var ok = el('span', 'seenmark'); ok.appendChild(icon(CHECK, 12)); th.appendChild(ok); }
