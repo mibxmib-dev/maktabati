@@ -144,12 +144,66 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 
 /* المشغّل */
 #player{position:fixed;inset:0;background:#000;z-index:20;display:flex;flex-direction:column}
-.pbar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--ground);flex-wrap:wrap}
-.pbar .ptitle{flex:1;min-width:140px;font-weight:700;overflow-wrap:anywhere}
-.pbar a{color:var(--accent);font-size:14px;min-height:44px;display:inline-flex;align-items:center;padding:0 6px}
-.stage{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
+.pbar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--ground);border-bottom:1px solid var(--line)}
+.iconbtn{width:44px;height:44px;border-radius:22px;border:0;background:transparent;color:var(--text);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.iconbtn:hover{background:var(--raised)}
+#pFav[aria-pressed="true"]{color:var(--accent)}
+.pbar .ptitle{flex:1;min-width:0;display:flex;flex-direction:column;font-weight:700;line-height:1.35}
+.pbar .ptitle span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pseries{font-size:12px;color:var(--accent);font-weight:500}
+.pseries:empty{display:none}
+.pbar a{color:var(--muted);font-size:13px;min-height:44px;display:inline-flex;align-items:center;padding:0 6px;white-space:nowrap}
+.stage{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;background:#000}
 .stage iframe{width:100%;height:100%;border:0}
 .stage .demo{color:var(--muted);text-align:center;padding:24px;max-width:420px}
+.pctl{display:flex;gap:8px;justify-content:center;padding:10px 12px;background:var(--ground);border-top:1px solid var(--line)}
+.pctl .btn{flex:0 1 auto}
+.pctl .primary{flex:1 1 auto;max-width:280px}
+.pstrip{display:flex;gap:10px;overflow-x:auto;padding:0 12px 12px;background:var(--ground);scroll-snap-type:x proximity}
+.pep{flex:0 0 132px;display:flex;flex-direction:column;gap:6px;background:none;border:0;color:var(--muted);padding:0;text-align:right;scroll-snap-align:start}
+.pep .vthumb{width:132px;height:74px;border:2px solid transparent}
+.pep[aria-current] .vthumb{border-color:var(--accent)}
+.pep[aria-current]{color:var(--text)}
+.pepname{font-size:12px;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seenmark{position:absolute;top:4px;left:4px;width:20px;height:20px;border-radius:10px;background:var(--accent);color:var(--on-accent);display:flex;align-items:center;justify-content:center}
+@media (max-height:520px){.pstrip{display:none}.pctl{padding:6px 12px}}
+
+/* التصفية، الشركات، صفحة العمل */
+.fchips{display:flex;gap:8px;overflow-x:auto;padding:14px 0 4px}
+.fchip{min-height:44px;padding:0 16px;border-radius:22px;border:1px solid var(--line);background:var(--surface);color:var(--text);white-space:nowrap;font-weight:500;display:inline-flex;align-items:center;gap:6px}
+.fchip[aria-pressed="true"]{background:var(--text);border-color:var(--text);color:var(--ground)}
+.ptitle2{font-size:22px;margin:16px 0 4px}
+.company{margin-top:26px;padding-top:6px;border-top:1px solid var(--line)}
+.cohead{display:flex;align-items:center}
+.coname{display:inline-flex;align-items:center;gap:10px;background:none;border:0;color:var(--text);font-size:22px;font-weight:700;min-height:48px;padding:0}
+.coname svg{color:var(--muted)}
+.cologo{width:40px;height:40px;border-radius:10px;overflow:hidden;background:var(--surface);border:1px solid var(--line)}
+.cologo img{width:100%;height:100%;object-fit:cover;display:block}
+.rowhead.sub{margin:12px 0 8px}
+.rowhead h3{margin:0;font-size:15px;color:var(--muted);font-weight:500}
+.tile{position:relative}
+.favdot{position:absolute;top:6px;left:6px;width:26px;height:26px;border-radius:13px;background:rgba(18,10,10,.75);color:var(--accent);display:flex;align-items:center;justify-content:center}
+.play.over{position:absolute;bottom:8px;right:8px;width:34px;height:34px;border-radius:17px;box-shadow:0 2px 10px rgba(0,0,0,.5)}
+.thero{position:relative;overflow:hidden;border-radius:18px;margin-top:14px;border:1px solid var(--line);background:linear-gradient(135deg,#2B1A18,#160E0D)}
+.tbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(22px) saturate(1.2);transform:scale(1.2);opacity:.5}
+.thero::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(18,10,10,.96) 15%,rgba(18,10,10,.55) 70%,rgba(18,10,10,.3))}
+.tin{position:relative;z-index:1;display:flex;gap:20px;align-items:flex-end;padding:20px}
+.tposter{width:150px;aspect-ratio:2/3;border-radius:12px;overflow:hidden;flex-shrink:0;background:var(--raised);border:1px solid var(--line);box-shadow:0 12px 30px rgba(0,0,0,.5)}
+.tposter img{width:100%;height:100%;object-fit:cover;display:block}
+.tinfo{display:flex;flex-direction:column;gap:6px;min-width:0}
+.tinfo h2{margin:0;font-size:clamp(24px,5vw,36px);line-height:1.25;text-wrap:balance}
+.eyebrow{align-self:flex-start;background:none;border:0;padding:0;color:var(--accent);font-size:14px;font-weight:500;min-height:32px;text-decoration:underline;text-underline-offset:3px}
+.tmeta{margin:0;color:var(--muted);font-size:14px}
+.tacts{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+.tacts .btn{gap:8px}
+.favbtn[aria-pressed="true"]{color:var(--accent);border-color:var(--accent)}
+@media (max-width:560px){.tin{flex-direction:column;align-items:flex-start}.tposter{width:120px}.tacts .btn{flex:1 1 auto}}
+.seasons{padding-top:18px}
+.stat{display:inline-flex;align-items:center;gap:4px;font-size:12px;margin-top:2px}
+.stat.seen{color:var(--muted)}
+.stat.now{color:var(--accent)}
+.video.watched .name{color:var(--muted)}
+.video.current{border-color:var(--accent)}
 @media (prefers-reduced-motion:no-preference){.folder,.video,.tab{transition:background .15s}}
 </style>
 </head>
@@ -200,13 +254,18 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 
 <div id="player" hidden>
   <div class="pbar">
-    <button class="btn small" id="btnClose" type="button">إغلاق</button>
-    <div class="ptitle" id="ptitle"></div>
-    <button class="btn small" id="btnPrev" type="button">السابق</button>
-    <button class="btn small" id="btnNext" type="button">التالي</button>
+    <button class="iconbtn" id="btnClose" type="button" aria-label="رجوع"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+    <div class="ptitle"><span class="pseries" id="pseries"></span><span id="ptitle"></span></div>
+    <button class="iconbtn" id="pFav" type="button" aria-pressed="false" aria-label="أضف للمفضلة"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.6-9.2C1 8 3 4.5 6.6 4.5c2.1 0 3.6 1.1 5.4 3.1 1.8-2 3.3-3.1 5.4-3.1C21 4.5 23 8 21.6 11.3 19.5 15.9 12 20.5 12 20.5z"></path></svg></button>
     <a id="openDrive" href="#" target="_blank" rel="noopener">فتح في Drive</a>
   </div>
   <div class="stage" id="stage"></div>
+  <div class="pctl">
+    <button class="btn small" id="btnPrev" type="button">السابق</button>
+    <button class="btn small primary" id="btnDone" type="button"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"></path></svg><span>شاهدتها · التالي</span></button>
+    <button class="btn small" id="btnNext" type="button">التالي</button>
+  </div>
+  <div class="pstrip" id="pstrip" aria-label="الحلقات"></div>
 </div>
 
 <script>
@@ -247,21 +306,30 @@ function node(id, name, folder, parent, dur) { return nodes[id] = { id: id, name
 /* ===== بيانات العرض التجريبي ===== */
 function demoTree() {
   var n = 0;
-  function dir(name, parent) { var d = node('demo-' + (++n), name, true, parent); d.kids = []; nodes[parent].kids.push(d.id); return d.id; }
-  function vid(name, parent, mins) { var v = node('demo-' + (++n), name + '.mp4', false, parent, mins * 60000); nodes[parent].kids.push(v.id); }
-  var i, s, e, x;
+  function dir(name, parent) { var d = node('demo-' + (++n), name, true, parent); d.kids = []; d.images = []; nodes[parent].kids.push(d.id); return d.id; }
+  function vid(name, parent, mins) { var v = node('demo-' + (++n), name + '.mp4', false, parent, mins * 60000); v.thumb = frame(n); nodes[parent].kids.push(v.id); }
   function pic(k) {
     var c = TILE[k % TILE.length];
-    return 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 132 190"><rect width="132" height="190" fill="' + c + '"/><circle cx="' + (30 + k * 17 % 70) + '" cy="70" r="46" fill="#F2B45A" opacity=".55"/><rect x="0" y="120" width="132" height="70" fill="#0F1217" opacity=".55"/><text x="66" y="160" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#F2F0EA">صورة تجريبية</text></svg>');
+    return 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 132 190"><rect width="132" height="190" fill="' + c + '"/><circle cx="' + (30 + k * 17 % 70) + '" cy="70" r="46" fill="#F4C27A" opacity=".55"/><rect y="120" width="132" height="70" fill="#120A0A" opacity=".55"/><text x="66" y="160" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#F6EEE3">غلاف تجريبي</text></svg>');
   }
-  var films = dir('أفلام', rootKey), shows = dir('مسلسلات', rootKey);
-  var fa = dir('عربي', films), fe = dir('انجليزي', films), sa = dir('عربي', shows), se = dir('انجليزي', shows);
-  for (i = 1; i <= 6; i++) vid('فيلم تجريبي ' + i, fa, 95 + i * 4);
-  nodes[fa].images = [1, 2, 4].map(function (k) { return { id: 'pf' + k, name: 'فيلم تجريبي ' + k + '.jpg', thumb: pic(k) }; });
-  nodes[fe].images = [1, 3, 4, 6].map(function (k) { return { id: 'pe' + k, name: 'Demo Movie ' + k + '.jpg', thumb: pic(k + 2) }; });
-  for (i = 1; i <= 7; i++) vid('Demo Movie ' + i, fe, 100 + i * 3);
-  ['أ', 'ب', 'ج', 'د'].forEach(function (l, k) { x = dir('مسلسل تجريبي ' + l, sa); if (k !== 1) nodes[x].images = [{ id: 'ps' + k, name: 'poster.jpg', thumb: pic(k + 1) }]; for (s = 1; s <= 1 + k % 2; s++) { var ss = dir('الموسم ' + s, x); for (e = 1; e <= 6; e++) vid('الحلقة ' + e, ss, 42); } });
-  ['A', 'B', 'C', 'D', 'E'].forEach(function (l, k) { x = dir('Demo Series ' + l, se); if (k % 2 === 0) nodes[x].images = [{ id: 'pt' + k, name: 'poster.jpg', thumb: pic(k + 3) }]; for (s = 1; s <= 1 + k % 3; s++) { var ss = dir('Season ' + s, x); for (e = 1; e <= 8; e++) vid('Episode ' + e, ss, 50); } });
+  function frame(k) {
+    var c = TILE[(k * 3) % TILE.length];
+    return 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90"><rect width="160" height="90" fill="' + c + '"/><rect x="' + (k * 23 % 100) + '" y="20" width="60" height="50" rx="8" fill="#F4C27A" opacity=".35"/></svg>');
+  }
+  function cover(id, k) { nodes[id].images = [{ id: 'img-' + id, name: 'cover.jpg', thumb: pic(k) }]; }
+  [['استوديو الشمس', ['مسلسل البيت الكبير', 'مسلسل رحلة الصيف', 'مسلسل الأصدقاء'], ['فيلم الطريق', 'فيلم الحارس', 'فيلم النجمة']],
+   ['شركة النجوم', ['Demo Series A', 'Demo Series B'], ['Demo Movie One', 'Demo Movie Two']]].forEach(function (co, ci) {
+    var c = dir(co[0], rootKey), ser = dir('مسلسلات', c), mov = dir('أفلام', c);
+    co[1].forEach(function (name, k) {
+      var x = dir(name, ser); if (k !== 2) cover(x, ci * 5 + k);
+      for (var s = 1; s <= 1 + (k + ci) % 3; s++) { var ss = dir(ci ? 'Season ' + s : 'الموسم ' + s, x); for (var e = 1; e <= 6; e++) vid(ci ? 'Episode ' + e : 'الحلقة ' + e, ss, 42); }
+    });
+    co[2].forEach(function (name, k) { var x = dir(name, mov); if (k !== 1) cover(x, ci * 5 + k + 3); vid(name, x, 98 + k * 9); });
+  });
+  /* شركة بدون مجلدي مسلسلات/أفلام: النوع يُعرف تلقائياً */
+  var w = dir('شركة الواحة', rootKey); cover(w, 9);
+  var s1 = dir('مسلسل الواحة', w); cover(s1, 11); var q = dir('الموسم 1', s1); for (var e = 1; e <= 5; e++) vid('الحلقة ' + e, q, 40);
+  var f1 = dir('فيلم الواحة', w); cover(f1, 12); vid('فيلم الواحة', f1, 110);
 }
 
 /* ===== قراءة Drive وفهرسة المكتبة ===== */
@@ -310,32 +378,121 @@ function crawl() {
 function schedule() { clearTimeout(timer); timer = setTimeout(render, 120); }
 
 /* ===== مساعدات ===== */
-function kids(id) { return (nodes[id].kids || []).map(function (k) { return nodes[k]; }); }
+function kids(id) { return (nodes[id] && nodes[id].kids || []).map(function (k) { return nodes[k]; }); }
 function trail(id) { var a = [], n = nodes[id]; while (n && n.id !== rootKey) { a.unshift(n); n = nodes[n.parent]; } return a; }
 function where(n) { return trail(n.parent).map(function (x) { return x.name; }).join(' › '); }
 function summary(n) {
   if (!n.folder) return fmt(n.dur);
   if (!n.kids) return '';
+  if (isTitle(n)) { var g = groups(n), e = allEpisodes(n).length; return titleKind(n) === 'movie' ? (e === 1 ? fmt(allEpisodes(n)[0].dur) : e + ' فيديو') : (g.length > 1 ? seas_(g.length) + ' · ' : '') + eps_(e); }
   var v = 0, f = 0; kids(n.id).forEach(function (k) { if (k.folder) f++; else v++; });
   return v ? v + ' فيديو' : (f ? f + ' مجلد' : 'فارغ');
 }
-function recentKey() { return demo ? 'mk_recent_demo' : 'mk_recent'; }
-function recent() { try { return JSON.parse(store(recentKey()) || '[]'); } catch (e) { return []; } }
-function remember(v) {
-  var a = recent().filter(function (x) { return x.id !== v.id; });
-  a.unshift({ id: v.id, name: v.name, parent: v.parent, dur: v.dur }); store(recentKey(), JSON.stringify(a.slice(0, 12)));
+
+function eps_(n) { return n === 1 ? 'حلقة واحدة' : n === 2 ? 'حلقتان' : n <= 10 ? n + ' حلقات' : n + ' حلقة'; }
+function seas_(n) { return n === 2 ? 'موسمان' : n <= 10 ? n + ' مواسم' : n + ' موسماً'; }
+/* ===== التصنيف: شركة ← مسلسلات/أفلام ← عمل ← مواسم ← حلقات ===== */
+var SERIES_RE = /^(مسلسلات|series|shows|tv shows)$/, MOVIE_RE = /^(افلام|movies|films)$/;
+var CAT = /^(مسلسلات|افلام|عربي|انجليزي|اجنبي|تركي|كوري|هندي|ياباني|انمي|كرتون|اطفال|series|shows|movies|films|arabic|english|foreign|turkish|korean|anime|kids|cartoon)$/;
+var SEASON = /(season|موسم|جزء|part|^s\d+$)/;
+function bucketKind(f) { var t = norm(f.name); return SERIES_RE.test(t) ? 'series' : MOVIE_RE.test(t) ? 'movie' : ''; }
+/* مجلد عمل (مسلسل أو فيلم) أم مجلد تصنيف (شركة أو نوع أو لغة)؟ */
+function isTitle(f) {
+  if (!f || !f.folder || f.id === rootKey || !f.kids) return false;
+  if (CAT.test(norm(f.name))) return false;
+  var k = kids(f.id);
+  if (k.some(function (c) { return c.folder && (bucketKind(c) || CAT.test(norm(c.name))); })) return false;
+  /* مجلد فيه أعمال كاملة (مثل شركة بدون مجلدي مسلسلات/أفلام) هو تصنيف وليس عملاً */
+  if (k.some(function (c) { return c.folder && c.kids && !SEASON.test(norm(c.name)) && isTitle(c); })) return false;
+  if (!k.length || (f.images && f.images.length)) return true;
+  if (k.some(function (c) { return !c.folder; })) return true;
+  return k.some(function (c) { return SEASON.test(norm(c.name)); });
+}
+function titleOf(v) {
+  var x = nodes[v.parent], t = null;
+  while (x && x.id !== rootKey) { if (isTitle(x)) t = x; else if (t) break; x = nodes[x.parent]; }
+  return t || v;
+}
+function companyOf(t) { var a = trail(t.id); return a.length > 1 && !bucketKind(a[0]) && !isTitle(a[0]) ? a[0] : null; }
+function titleKind(t) {
+  if (!t.folder) return 'movie';
+  var x = nodes[t.parent];
+  while (x && x.id !== rootKey) { var b = bucketKind(x); if (b) return b; x = nodes[x.parent]; }
+  var g = groups(t); return g.length > 1 || allEpisodes(t).length > 1 ? 'series' : 'movie';
+}
+function groups(t) {
+  if (!t.folder) return [{ id: t.id, name: '', eps: [t] }];
+  var k = kids(t.id), out = [];
+  k.filter(function (c) { return c.folder; }).forEach(function (c) { var e = kids(c.id).filter(function (v) { return !v.folder; }); if (e.length) out.push({ id: c.id, name: c.name, eps: e }); });
+  var loose = k.filter(function (c) { return !c.folder; });
+  if (loose.length) out[out.length ? 'push' : 'unshift']({ id: t.id, name: out.length ? 'أخرى' : 'الحلقات', eps: loose });
+  return out;
+}
+function allEpisodes(t) { var a = []; groups(t).forEach(function (g) { a = a.concat(g.eps); }); return a; }
+function titlesUnder(f, kind) {
+  var out = [];
+  (function walk(x) {
+    kids(x.id).forEach(function (k) {
+      if (k.folder) { if (!k.kids) return; if (isTitle(k)) { if (!kind || titleKind(k) === kind) out.push(k); } else walk(k); }
+      else if (!isTitle(x) && (!kind || kind === 'movie')) out.push(k);
+    });
+  })(f);
+  return out;
+}
+/* يحمّل محتوى العمل ومواسمه إن لم تكتمل الفهرسة بعد */
+function ensure(id) {
+  var n = nodes[id], ok = true;
+  if (!n.kids) { loadKids(id).then(schedule, function () { n.kids = []; schedule(); }); return false; }
+  kids(id).forEach(function (k) { if (k.folder && !k.kids) { ok = false; loadKids(k.id).then(schedule, function () { k.kids = []; schedule(); }); } });
+  return ok;
+}
+
+/* ===== المفضلة والمتابعة (محفوظة في هذا الجهاز) ===== */
+function skey(k) { return (demo ? 'mkd_' : 'mk_') + k; }
+function jget(k, d) { try { var v = store(skey(k)); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+function jset(k, v) { store(skey(k), JSON.stringify(v)); }
+function favs() { return jget('fav', []); }
+function isFav(id) { return favs().some(function (f) { return f.id === id; }); }
+function toggleFav(t) {
+  var a = favs(), on = a.some(function (f) { return f.id === t.id; });
+  a = on ? a.filter(function (f) { return f.id !== t.id; }) : [{ id: t.id, name: t.name }].concat(a);
+  jset('fav', a); return !on;
+}
+function hist() { return jget('hist', {}); }
+function done() { return jget('done', {}); }
+function remember(v) { var t = titleOf(v), h = hist(); h[t.id] = { v: v.id, at: Date.now() }; jset('hist', h); }
+function markDone(v, on) { var d = done(); if (on === false) delete d[v.id]; else d[v.id] = 1; jset('done', d); }
+/* الحلقة التي يكمل منها: آخر حلقة فتحتها، أو التي بعدها إن أنهيتها */
+function resumePoint(t) {
+  var eps = allEpisodes(t), h = hist()[t.id], d = done();
+  var last = h && eps.filter(function (e) { return e.id === h.v; })[0];
+  if (!last) return { ep: eps[0], started: false };
+  var i = eps.indexOf(last);
+  if (d[last.id] && i < eps.length - 1) return { ep: eps[i + 1], started: true, next: true };
+  return { ep: last, started: true };
+}
+function continueList() {
+  var h = hist();
+  return Object.keys(h).sort(function (a, b) { return h[b].at - h[a].at; })
+    .map(function (id) { return nodes[id]; })
+    .filter(function (t) { if (!t) return false; var r = resumePoint(t); return r.ep && !(done()[r.ep.id] && !r.next); }).slice(0, 12);
 }
 function open(n) {
   if (n.folder) { view = 'folder'; cur = n.id; query = ''; $('q').value = ''; render(); window.scrollTo(0, 0); return; }
-  var sib = nodes[n.parent] && nodes[n.parent].kids ? kids(n.parent).filter(function (k) { return !k.folder; }) : [n];
-  queue = sib; play(Math.max(0, sib.indexOf(n)));
+  playEpisode(n);
+}
+function playEpisode(v) {
+  var t = titleOf(v), eps = t.folder ? allEpisodes(t) : [v], i = eps.indexOf(v);
+  queue = i < 0 ? [v] : eps; play(i < 0 ? 0 : i);
 }
 
 /* ===== العرض ===== */
-var blobs = {};
+var blobs = {}, filter = 'all', seasonSel = {};
+var HEART = 'M12 20.5s-7.5-4.6-9.6-9.2C1 8 3 4.5 6.6 4.5c2.1 0 3.6 1.1 5.4 3.1 1.8-2 3.3-3.1 5.4-3.1C21 4.5 23 8 21.6 11.3 19.5 15.9 12 20.5 12 20.5z';
+var CHECK = 'M5 12.5l4.2 4.2L19 7';
 function poster(n) {
   var imgs, base;
-  if (n.folder) { imgs = n.images || []; return imgs.filter(function (i) { return /^(poster|cover|folder|صور|غلاف)/i.test(i.name); })[0] || imgs[0] || null; }
+  if (n.folder) { imgs = n.images || []; return imgs.filter(function (i) { return /^(poster|cover|folder|logo|صور|غلاف|شعار)/i.test(i.name); })[0] || imgs[0] || null; }
   imgs = (nodes[n.parent] && nodes[n.parent].images) || []; base = norm(clean(n.name));
   return imgs.filter(function (i) { return norm(clean(i.name)) === base; })[0] || (n.thumb ? { id: 'v-' + n.id, thumb: n.thumb, video: true } : null);
 }
@@ -352,58 +509,85 @@ function setPoster(im, p) {
   };
   if (p.thumb) im.src = p.thumb.replace(/=s\d+$/, '=s480'); else im.onerror();
 }
-function card(n) {
+function img(p, cls) { var im = document.createElement('img'); im.alt = ''; im.loading = 'lazy'; im.referrerPolicy = 'no-referrer'; if (cls) im.className = cls; setPoster(im, p); return im; }
+function card(n, sub) {
   var b = el('button', 'card'); b.type = 'button';
   var t = el('span', 'tile'), p = poster(n);
-  if (p) { var im = document.createElement('img'); im.alt = ''; im.loading = 'lazy'; im.referrerPolicy = 'no-referrer'; setPoster(im, p); t.appendChild(im); }
-  b.appendChild(t); b.appendChild(el('span', 'name', clean(n.name))); b.appendChild(el('span', 'meta', summary(n) || ' '));
+  if (p) t.appendChild(img(p));
+  if (isFav(n.id)) { var f = el('span', 'favdot'); f.appendChild(icon(HEART, 14, true)); t.appendChild(f); }
+  b.appendChild(t); b.appendChild(el('span', 'name', clean(n.name))); b.appendChild(el('span', 'meta', sub || summary(n) || ' '));
   b.onclick = function () { open(n); }; return b;
 }
-function row(box, title, items, more) {
+function contCard(t) {
+  var r = resumePoint(t), b = card(t, t.folder && titleKind(t) === 'series' ? (r.next ? 'التالي: ' : 'تابع: ') + clean(r.ep.name) : 'تابع المشاهدة');
+  var pl = el('span', 'play mini over'); pl.appendChild(icon('M8 5v14l11-7z', 14, true)); b.querySelector('.tile').appendChild(pl);
+  b.onclick = function () { playEpisode(r.ep); }; return b;
+}
+function row(box, title, items, more, sub, mk) {
   if (!items.length) return;
-  var h = el('div', 'rowhead'); h.appendChild(el('h2', '', title));
+  var h = el('div', 'rowhead' + (sub ? ' sub' : '')); h.appendChild(el(sub ? 'h3' : 'h2', '', title));
   if (more) { var m = el('button', '', 'عرض الكل'); m.type = 'button'; m.onclick = function () { open(more); }; h.appendChild(m); }
-  var r = el('div', 'row'); items.forEach(function (n) { r.appendChild(card(n)); });
+  var r = el('div', 'row'); items.forEach(function (n) { r.appendChild((mk || card)(n)); });
   box.appendChild(h); box.appendChild(r);
 }
 function videoRow(n, withPath) {
   var b = el('button', 'video'); b.type = 'button';
+  var d = done(), t = titleOf(n), h = hist()[t.id];
   var p, pic = n.folder ? null : poster(n);
   if (!n.folder) {
-    p = el('span', 'vthumb');
-    if (pic) { var im = document.createElement('img'); im.alt = ''; im.loading = 'lazy'; im.referrerPolicy = 'no-referrer'; setPoster(im, pic); p.appendChild(im); }
+    p = el('span', 'vthumb'); if (pic) p.appendChild(img(pic));
     var pl = el('span', 'play mini'); pl.appendChild(icon('M8 5v14l11-7z', 14, true)); p.appendChild(pl);
-  } else { p = el('span', 'play'); p.appendChild(icon(n.folder ? 'M3 6h6l2 2h10v11H3z' : 'M8 5v14l11-7z', 18, !n.folder)); }
-  var t = el('span', 'txt'); t.appendChild(el('span', 'name', clean(n.name)));
-  if (withPath) { var w = where(n); if (w) t.appendChild(el('span', 'where', w)); }
-  b.appendChild(p); b.appendChild(t); b.appendChild(el('span', 'dur', n.folder ? summary(n) : fmt(n.dur)));
+  } else { p = el('span', 'play'); p.appendChild(icon('M3 6h6l2 2h10v11H3z', 18)); }
+  var tx = el('span', 'txt'); tx.appendChild(el('span', 'name', clean(n.name)));
+  if (withPath) { var w = where(n); if (w) tx.appendChild(el('span', 'where', w)); }
+  if (!n.folder && d[n.id]) { var ok = el('span', 'stat seen'); ok.appendChild(icon(CHECK, 14)); ok.appendChild(document.createTextNode('شاهدتها')); tx.appendChild(ok); b.classList.add('watched'); }
+  else if (!n.folder && h && h.v === n.id) { tx.appendChild(el('span', 'stat now', 'آخر ما شاهدته')); b.classList.add('current'); }
+  b.appendChild(p); b.appendChild(tx); b.appendChild(el('span', 'dur', n.folder ? summary(n) : fmt(n.dur)));
   b.onclick = function () { open(n); }; return b;
 }
-var CAT = /^(عربي|انجليزي|اجنبي|تركي|كوري|هندي|ياباني|انمي|كرتون|اطفال|arabic|english|foreign|turkish|korean|anime|kids|cartoon)/;
-var SEASON = /(season|موسم|جزء|part|^s\d+)/;
-/* مجلد عمل (مسلسل أو فيلم) أم مجلد تصنيف (لغة مثلاً)؟ */
-function isTitle(f) {
-  if (CAT.test(norm(f.name))) return false;
-  var k = kids(f.id);
-  if (!k.length || (f.images && f.images.length)) return true;
-  if (k.some(function (c) { return !c.folder; })) return true;
-  return k.some(function (c) { return SEASON.test(norm(c.name)); });
+function chips(box) {
+  var c = el('div', 'fchips'); c.setAttribute('role', 'group'); c.setAttribute('aria-label', 'تصفية');
+  [['all', 'الكل'], ['series', 'مسلسلات'], ['movie', 'أفلام'], ['fav', 'المفضلة']].forEach(function (o) {
+    var b = el('button', 'fchip', o[1]); b.type = 'button'; b.setAttribute('aria-pressed', String(filter === o[0]));
+    if (o[0] === 'fav') b.insertBefore(icon(HEART, 14, filter === 'fav'), b.firstChild);
+    b.onclick = function () { filter = o[0]; render(); }; c.appendChild(b);
+  });
+  box.appendChild(c);
 }
 function renderHome(box) {
   if (fatal) { box.appendChild(el('div', 'state', fatal)); return; }
   if (!nodes[rootKey].kids) { box.appendChild(el('div', 'state', 'جارٍ التحميل…')); return; }
-  var rec = recent().map(function (r) { return nodes[r.id] || { id: r.id, name: r.name, parent: r.parent, dur: r.dur, folder: false }; });
-  row(box, 'شاهدت مؤخراً', rec);
-  var any = false;
+  chips(box);
+  if (filter === 'fav') {
+    var fv = favs().map(function (f) { return nodes[f.id]; }).filter(Boolean);
+    box.appendChild(el('h2', 'ptitle2', 'المفضلة'));
+    if (!fv.length) { box.appendChild(el('div', 'state', crawling ? 'جارٍ تحميل المفضلة…' : 'ما أضفت شيئاً للمفضلة بعد. افتح أي مسلسل أو فيلم واضغط «أضف للمفضلة».')); return; }
+    var g = el('div', 'grid'); fv.forEach(function (n) { g.appendChild(card(n)); }); box.appendChild(g); return;
+  }
+  if (filter === 'all') {
+    row(box, 'تابع المشاهدة', continueList(), null, false, contCard);
+    row(box, 'المفضلة', favs().map(function (f) { return nodes[f.id]; }).filter(Boolean));
+  }
+  var any = false, kinds = filter === 'all' ? ['series', 'movie'] : [filter], label = { series: 'مسلسلات', movie: 'أفلام' }, loose = [];
   kids(rootKey).forEach(function (top) {
-    if (!top.folder) return;
-    var tk = kids(top.id), titles = tk.filter(function (k) { return !k.folder || (k.kids && isTitle(k)); });
-    if (titles.length) { row(box, top.name, titles, top); any = true; }
-    tk.forEach(function (sub) { if (sub.folder && sub.kids && sub.kids.length && !isTitle(sub)) { row(box, top.name + ' · ' + sub.name, kids(sub.id), sub); any = true; } });
+    if (!top.folder) { loose.push(top); return; }
+    if (!top.kids) return;
+    var bk = bucketKind(top);
+    if (bk) { if (kinds.indexOf(bk) >= 0) { var tt = titlesUnder(top, bk); if (tt.length) { row(box, top.name, tt, top); any = true; } } return; }
+    if (isTitle(top)) { loose.push(top); return; }
+    var sec = el('section', 'company'), rows = 0;
+    var hd = el('div', 'cohead'), hb = el('button', 'coname'); hb.type = 'button';
+    var lp = poster(top); if (lp) { var li = el('span', 'cologo'); li.appendChild(img(lp)); hb.appendChild(li); }
+    hb.appendChild(el('span', '', top.name)); hb.appendChild(icon('M15 6l-6 6 6 6', 18)); hb.onclick = function () { open(top); };
+    hd.appendChild(hb); sec.appendChild(hd);
+    kinds.forEach(function (k) {
+      var items = titlesUnder(top, k), bucket = kids(top.id).filter(function (c) { return c.folder && bucketKind(c) === k; })[0];
+      if (items.length) { row(sec, label[k], items, bucket, true); rows++; }
+    });
+    if (rows) { box.appendChild(sec); any = true; }
   });
-  var loose = kids(rootKey).filter(function (k) { return !k.folder; });
-  if (loose.length) { row(box, 'ملفات أخرى', loose); any = true; }
-  if (!any && !crawling) box.appendChild(el('div', 'state', 'لم أجد مجلدات أو ملفات فيديو في المجلد الرئيسي.'));
+  if (loose.length && filter === 'all') { row(box, 'أخرى', loose); any = true; }
+  if (!any && !crawling) box.appendChild(el('div', 'state', filter === 'all' ? 'لم أجد مجلدات أو ملفات فيديو في المجلد الرئيسي.' : 'لا يوجد شيء في هذا التصنيف بعد.'));
 }
 function renderSearch(box) {
   var words = norm(query).split(/\s+/).filter(Boolean), hits = [];
@@ -417,21 +601,59 @@ function renderSearch(box) {
   var l = el('div', 'list'); hits.slice(0, 80).forEach(function (n) { l.appendChild(videoRow(n, true)); }); box.appendChild(l);
   if (hits.length > 80) box.appendChild(el('div', 'state', 'تظهر أول 80 نتيجة. أضف كلمة لتضييق البحث.'));
 }
+/* صفحة المسلسل أو الفيلم */
+function renderTitle(box, t) {
+  var gs = groups(t), eps = allEpisodes(t), kind = titleKind(t), r = resumePoint(t), co = companyOf(t), p = poster(t);
+  var hero = el('section', 'thero');
+  if (p) { var bg = img(p, 'tbg'); bg.setAttribute('aria-hidden', 'true'); hero.appendChild(bg); }
+  var inner = el('div', 'tin'), pt = el('div', 'tposter'); if (p) pt.appendChild(img(p)); inner.appendChild(pt);
+  var info = el('div', 'tinfo');
+  if (co) { var cb = el('button', 'eyebrow', co.name); cb.type = 'button'; cb.onclick = function () { open(co); }; info.appendChild(cb); }
+  info.appendChild(el('h2', '', t.name));
+  var meta = [kind === 'series' ? 'مسلسل' : 'فيلم'];
+  if (kind === 'series') { if (gs.length > 1) meta.push(seas_(gs.length)); meta.push(eps_(eps.length)); }
+  else if (eps.length === 1 && eps[0].dur) meta.push(fmt(eps[0].dur));
+  info.appendChild(el('p', 'tmeta', meta.join(' · ')));
+  var acts = el('div', 'tacts');
+  if (r.ep) {
+    var pb = el('button', 'btn primary'); pb.type = 'button'; pb.appendChild(icon('M8 5v14l11-7z', 18, true));
+    pb.appendChild(document.createTextNode(kind === 'series' ? (r.started ? (r.next ? 'شاهد التالي: ' : 'تابع: ') + clean(r.ep.name) : 'شاهد ' + clean(r.ep.name)) : (r.started ? 'تابع المشاهدة' : 'تشغيل')));
+    pb.onclick = function () { playEpisode(r.ep); }; acts.appendChild(pb);
+  }
+  var on = isFav(t.id), fb = el('button', 'btn favbtn'); fb.type = 'button'; fb.setAttribute('aria-pressed', String(on));
+  fb.appendChild(icon(HEART, 18, on)); fb.appendChild(document.createTextNode(on ? 'في المفضلة' : 'أضف للمفضلة'));
+  fb.onclick = function () { toggleFav(t); render(); }; acts.appendChild(fb);
+  info.appendChild(acts); inner.appendChild(info); hero.appendChild(inner); box.appendChild(hero);
+  if (!eps.length) { box.appendChild(el('div', 'state', 'لا توجد ملفات فيديو هنا بعد.')); return; }
+  if (kind === 'movie' && eps.length === 1) return;
+  var sel = seasonSel[t.id], g = gs.filter(function (x) { return x.id === sel; })[0];
+  if (!g) g = gs.filter(function (x) { return r.ep && x.eps.indexOf(r.ep) >= 0; })[0] || gs[0];
+  if (gs.length > 1) {
+    var tabs = el('div', 'fchips seasons'); tabs.setAttribute('role', 'group'); tabs.setAttribute('aria-label', 'المواسم');
+    gs.forEach(function (x) { var b = el('button', 'fchip', x.name); b.type = 'button'; b.setAttribute('aria-pressed', String(x === g)); b.onclick = function () { seasonSel[t.id] = x.id; render(); }; tabs.appendChild(b); });
+    box.appendChild(tabs);
+  } else box.appendChild(el('h3', '', g.name + ' (' + g.eps.length + ')'));
+  var l = el('div', 'list'); g.eps.forEach(function (v) { l.appendChild(videoRow(v, false)); }); box.appendChild(l);
+}
+/* صفحة الشركة أو أي مجلد تصنيف */
 function renderFolder(box) {
   var n = nodes[cur];
-  if (!n.kids) { box.appendChild(el('div', 'state', 'جارٍ التحميل…')); loadKids(cur).then(schedule, function (e) { n.kids = []; schedule(); }); return; }
-  var items = kids(cur), folders = items.filter(function (x) { return x.folder; }), videos = items.filter(function (x) { return !x.folder; });
+  if (!ensure(cur) && !n.kids) { box.appendChild(el('div', 'state', 'جارٍ التحميل…')); return; }
+  if (isTitle(n)) { renderTitle(box, n); return; }
+  var items = kids(cur), sub = items.filter(function (x) { return x.folder && bucketKind(x); });
+  box.appendChild(el('h2', 'ptitle2', n.name));
+  if (sub.length) {
+    sub.forEach(function (b) {
+      var tt = titlesUnder(b); if (!tt.length) return;
+      box.appendChild(el('h3', '', b.name + ' (' + tt.length + ')'));
+      var g = el('div', 'grid'); tt.forEach(function (x) { g.appendChild(card(x)); }); box.appendChild(g);
+    });
+    return;
+  }
+  var folders = items.filter(function (x) { return x.folder; }), videos = items.filter(function (x) { return !x.folder; });
   if (!items.length) { box.appendChild(el('div', 'state', 'هذا المجلد لا يحتوي مجلدات أو ملفات فيديو.')); return; }
-  if (folders.length) {
-    box.appendChild(el('h3', '', 'المجلدات (' + folders.length + ')'));
-    var g = el('div', 'grid');
-    folders.forEach(function (f) { g.appendChild(card(f)); });
-    box.appendChild(g);
-  }
-  if (videos.length) {
-    box.appendChild(el('h3', '', 'للمشاهدة (' + videos.length + ')'));
-    var l = el('div', 'list'); videos.forEach(function (v) { l.appendChild(videoRow(v, false)); }); box.appendChild(l);
-  }
+  if (folders.length) { var g = el('div', 'grid'); folders.forEach(function (f) { g.appendChild(card(f)); }); box.appendChild(g); }
+  if (videos.length) { box.appendChild(el('h3', '', 'للمشاهدة (' + videos.length + ')')); var l = el('div', 'list'); videos.forEach(function (v) { l.appendChild(videoRow(v, false)); }); box.appendChild(l); }
 }
 function render() {
   if ($('library').hidden) return;
@@ -456,7 +678,7 @@ function goHome() { view = 'home'; query = ''; $('q').value = ''; render(); wind
 function openLibrary() {
   $('signin').hidden = true; $('library').hidden = false; $('demoBadge').hidden = !demo;
   nodes = {}; rootKey = demo ? 'demo-root' : rootId; node(rootKey, 'الرئيسية', true, null);
-  view = 'home'; query = ''; $('q').value = '';
+  view = 'home'; query = ''; $('q').value = ''; filter = 'all';
   if (demo) { nodes[rootKey].kids = []; demoTree(); crawling = false; fatal = ''; crawlGen++; render(); } else { crawl(); render(); }
 }
 $('q').oninput = function () { query = this.value.trim(); render(); };
@@ -464,12 +686,27 @@ $('btnHome').onclick = goHome;
 
 /* ===== المشغّل ===== */
 function play(i) {
-  qIndex = i; var v = queue[i], st = $('stage'); st.textContent = '';
+  qIndex = i; var v = queue[i], st = $('stage'), t = titleOf(v), d = done();
+  st.textContent = '';
+  $('pseries').textContent = t !== v ? t.name : '';
   $('ptitle').textContent = clean(v.name);
+  var multi = queue.length > 1;
+  $('btnPrev').hidden = $('btnNext').hidden = !multi; $('pstrip').hidden = !multi;
   $('btnPrev').disabled = i === 0; $('btnNext').disabled = i === queue.length - 1;
+  $('btnDone').lastChild.textContent = i < queue.length - 1 ? 'شاهدتها · التالي' : 'شاهدتها';
+  var fv = isFav(t.id); $('pFav').setAttribute('aria-pressed', String(fv)); $('pFav').setAttribute('aria-label', fv ? 'إزالة من المفضلة' : 'أضف للمفضلة');
+  $('pFav').firstChild.setAttribute('fill', fv ? 'currentColor' : 'none');
   remember(v);
+  var strip = $('pstrip'); strip.textContent = '';
+  if (multi) queue.forEach(function (e, k) {
+    var b = el('button', 'pep'); b.type = 'button'; if (k === i) b.setAttribute('aria-current', 'true');
+    var th = el('span', 'vthumb'), pic = poster(e); if (pic) th.appendChild(img(pic));
+    if (d[e.id]) { var ok = el('span', 'seenmark'); ok.appendChild(icon(CHECK, 12)); th.appendChild(ok); }
+    b.appendChild(th); b.appendChild(el('span', 'pepname', clean(e.name)));
+    b.onclick = function () { play(k); }; strip.appendChild(b);
+  });
   if (demo) {
-    st.appendChild(el('div', 'demo', 'هذه معاينة تجريبية. بعد ربط مجلدك ورفع الصفحة على موقعك يظهر هنا مشغّل Google Drive ويبدأ البث مباشرة.'));
+    st.appendChild(el('div', 'demo', 'هذه معاينة تجريبية. في مكتبتك الحقيقية يظهر هنا مشغّل Google Drive ويبدأ البث مباشرة.'));
     $('openDrive').hidden = true;
   } else {
     var f = document.createElement('iframe');
@@ -479,11 +716,13 @@ function play(i) {
     $('openDrive').hidden = false; $('openDrive').href = 'https://drive.google.com/file/d/' + encodeURIComponent(v.id) + '/view';
   }
   $('player').hidden = false;
+  var curEl = strip.querySelector('[aria-current]'); if (curEl) curEl.scrollIntoView({ block: 'nearest', inline: 'center' });
 }
 $('btnClose').onclick = function () { $('stage').textContent = ''; $('player').hidden = true; render(); };
 $('btnPrev').onclick = function () { if (qIndex > 0) play(qIndex - 1); };
 $('btnNext').onclick = function () { if (qIndex < queue.length - 1) play(qIndex + 1); };
-
+$('btnDone').onclick = function () { markDone(queue[qIndex]); if (qIndex < queue.length - 1) play(qIndex + 1); else $('btnClose').onclick(); };
+$('pFav').onclick = function () { toggleFav(titleOf(queue[qIndex])); play(qIndex); };
 
 /* ===== شاشة الافتتاح: تشغيل التلفاز، تشويش، نيون، إضاءة، ثم العنوان (بدون صوت) ===== */
 var Intro = (function () {
