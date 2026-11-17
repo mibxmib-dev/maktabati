@@ -628,7 +628,7 @@ function mqLoop(t) {
   MQ.raf = requestAnimationFrame(mqLoop);
 }
 function channels(box) {
-  var cos = kids(rootKey).filter(function (c) { return c.folder && c.kids && !bucketKind(c) && !isTitle(c); });
+  var cos = kids(rootKey).filter(function (c) { return c.folder && c.kids && !bucketKind(c) && !isTitle(c) && !YT_RE.test(norm(c.name)); });
   if (!cos.length) return;
   function mk(c) {
     var b = el('button', 'chan'); b.type = 'button'; b.draggable = false;
