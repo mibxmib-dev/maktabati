@@ -69,7 +69,7 @@ button{cursor:pointer}
 @keyframes flick{0%{opacity:0}8%{opacity:1}12%{opacity:.1}20%{opacity:.9}24%{opacity:.2}38%{opacity:1}42%{opacity:.35}50%,100%{opacity:1}}
 @keyframes buzz{0%,100%{opacity:1}47%{opacity:1}48%{opacity:.82}49%{opacity:1}86%{opacity:.93}87%{opacity:1}}
 @keyframes breathe{0%,100%{opacity:.55}50%{opacity:1}}
-.winsnow,.fireglow,.firecv{display:none;pointer-events:none}
+.winsnow,.fireglow,.firecv,.steamcv{display:none;pointer-events:none}
 @keyframes fireglow{0%{opacity:.14}12%{opacity:.26}20%{opacity:.15}35%{opacity:.3}48%{opacity:.18}60%{opacity:.32}72%{opacity:.16}85%{opacity:.27}100%{opacity:.14}}
 @media (prefers-reduced-motion:reduce){.fireglow{animation:none!important}.neon-on .neon{animation:none;opacity:1}.neon-on .tvlight{animation:none}.power{animation:none;opacity:1}.lit .title{transition:clip-path .01s,filter .01s}}
 
@@ -85,6 +85,8 @@ button{cursor:pointer}
   #signin.wint .fireglow,#signin.wint .firecv{display:block;left:67.71%;top:39.24%;width:32.29%;height:21.8%;-webkit-mask:url(assets/fire-mask.png) 0 0/100% 100% no-repeat;mask:url(assets/fire-mask.png) 0 0/100% 100% no-repeat}
   #signin.wint .fireglow{background:radial-gradient(ellipse at 72% 62%,#ffb347,#ff7a1a 40%,rgba(255,77,0,0) 75%);mix-blend-mode:screen;opacity:.18;animation:fireglow 2.3s infinite}
   #signin.wint .firecv{mix-blend-mode:screen}
+  /* بخار القدر والكوب وفقاعات الشوربة */
+  #signin.wint .steamcv{display:block;left:61.2%;top:43.6%;width:38.8%;height:14.53%}
   .tv{left:35.29%;top:46.29%;width:27.34%;height:11.99%;border-radius:6%/9%;clip-path:polygon(0 0,100% 0,100% 100%,97.6% 100%,97.6% 88.5%,95.8% 85.2%,15.4% 85.2%,13.6% 88.5%,13.6% 100%,0 100%)}
   .neon{font-size:21cqw;margin-top:-6%}
   .tvlight{left:8%;top:34%;width:84%;height:34%}
@@ -341,6 +343,7 @@ button.pseries[hidden]{display:none}
     <canvas class="winsnow" id="winSnow" aria-hidden="true"></canvas>
     <div class="fireglow" aria-hidden="true"></div>
     <canvas class="firecv" id="fireCv" width="248" height="300" aria-hidden="true"></canvas>
+    <canvas class="steamcv" id="steamCv" aria-hidden="true"></canvas>
     <div class="dim"></div>
     <div class="tvlight"></div>
     <picture class="title"><source id="srcTitle" media="(max-aspect-ratio: 1/1)" srcset="assets/title-p.webp"><img src="assets/title.webp" alt=""></picture>
@@ -1611,6 +1614,47 @@ $('pFav').onclick = function () { toggleFav(titleOf(queue[qIndex])); play(qIndex
   new MutationObserver(go).observe($('signin'), { attributes: true, attributeFilter: ['hidden'] });
   /* نسخّن النار قبل أول عرض عشان ما تبدأ فاضية */
   for (var i = 0; i < 100; i++) { var q = spawn(); q.age = Math.random() * q.life; ps.push(q); }
+  setTimeout(go, 50);
+})();
+/* بخار يطلع من القدر والكوب، وشوربة تفور بفقاعات صغيرة */
+(function () {
+  var cv = $('steamCv'), cx = cv.getContext('2d'), W = 298, H = 200, st = [], bb = [], raf = 0, last = 0, aS = 0, aB = 0;
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  cv.width = W * 2; cv.height = H * 2; cx.setTransform(2, 0, 0, 2, 0, 0);
+  var puff = document.createElement('canvas'); puff.width = puff.height = 64;
+  (function () { var g = puff.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,.9)'); gr.addColorStop(.5, 'rgba(255,250,240,.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); })();
+  function pick(a, b) { return a + Math.random() * (b - a); }
+  /* مصدرين للبخار: سطح الشوربة، وفوهة الكوب */
+  function steam() {
+    return Math.random() < .55
+      ? { x: pick(190, 225), y: pick(86, 94), vx: pick(-2, 3), vy: pick(-22, -14), life: pick(2, 3.2), sz: pick(6, 10), gr: 16, a: .2, age: 0, ph: Math.random() * 6.3 }
+      : { x: pick(70, 92), y: pick(176, 184), vx: pick(-3, 2), vy: pick(-20, -12), life: pick(2.6, 3.8), sz: pick(8, 13), gr: 22, a: .2, age: 0, ph: Math.random() * 6.3 };
+  }
+  /* فقاعة داخل سطح الشوربة (شكل بيضاوي) */
+  function bubble() { var t = Math.random() * 6.283, r = Math.sqrt(Math.random()); return { x: 207.5 + Math.cos(t) * r * 24, y: 93.7 + Math.sin(t) * r * 3.8, age: 0, life: pick(.5, 1.1), sz: pick(.9, 2) }; }
+  function frame(t) {
+    raf = 0; if ($('signin').hidden || document.hidden || getComputedStyle(cv).display === 'none') return;
+    var dt = Math.min(.05, last ? (t - last) / 1000 : .016); last = t;
+    aS += dt * 9; while (aS > 1) { st.push(steam()); aS--; }
+    aB += dt * 6; while (aB > 1) { bb.push(bubble()); aB--; }
+    cx.clearRect(0, 0, W, H);
+    for (var i = st.length - 1; i >= 0; i--) {
+      var p = st[i]; p.age += dt; var k = p.age / p.life; if (k >= 1) { st.splice(i, 1); continue; }
+      p.ph += dt * 1.6; p.x += (p.vx + Math.sin(p.ph) * 7 * k) * dt; p.y += p.vy * dt;
+      var s = p.sz + p.gr * k; cx.globalAlpha = p.a * Math.sin(k * 3.1416) * (1 - k * .3);
+      cx.drawImage(puff, p.x - s / 2, p.y - s / 2, s, s * 1.15);
+    }
+    for (var j = bb.length - 1; j >= 0; j--) {
+      var b = bb[j]; b.age += dt; var q = b.age / b.life; if (q >= 1) { bb.splice(j, 1); continue; }
+      if (q < .75) { var r = b.sz * (q / .75); cx.globalAlpha = .85; cx.fillStyle = 'rgba(255,238,190,1)'; cx.beginPath(); cx.ellipse(b.x, b.y, r, r * .7, 0, 0, 6.283); cx.fill(); cx.globalAlpha = .5; cx.strokeStyle = 'rgba(150,95,40,1)'; cx.lineWidth = .4; cx.stroke(); }
+      else { var e = (q - .75) / .25, rr = b.sz * (1 + e * 1.4); cx.globalAlpha = .6 * (1 - e); cx.strokeStyle = 'rgba(255,245,210,1)'; cx.lineWidth = .5; cx.beginPath(); cx.ellipse(b.x, b.y, rr, rr * .6, 0, 0, 6.283); cx.stroke(); }
+    }
+    cx.globalAlpha = 1; if (!reduce) raf = requestAnimationFrame(frame);
+  }
+  function go() { if (!raf) { last = 0; raf = requestAnimationFrame(frame); } }
+  document.addEventListener('visibilitychange', go);
+  new MutationObserver(go).observe($('signin'), { attributes: true, attributeFilter: ['hidden'] });
+  for (var i = 0; i < 26; i++) { var q = steam(); q.age = Math.random() * q.life; st.push(q); }
   setTimeout(go, 50);
 })();
 var Intro = (function () {
