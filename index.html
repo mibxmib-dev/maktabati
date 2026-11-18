@@ -21,7 +21,8 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box}
-html,body{height:100%}
+html,body{height:100%;overflow-x:hidden;overflow-x:clip}
+body.playing{overflow:hidden}
 body{margin:0;background:var(--ground);color:var(--text);font-family:var(--font);font-size:16px;line-height:1.6}
 button,input{font-family:inherit;font-size:inherit}
 button{cursor:pointer}
@@ -144,7 +145,10 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 .state{color:var(--muted);padding:28px 0;text-align:center}
 
 /* المشغّل */
-#player{position:fixed;inset:0;background:#000;z-index:20;display:flex;flex-direction:column}
+#player{position:fixed;top:0;bottom:0;left:0;right:0;width:100%;max-width:100vw;overflow:hidden;background:#000;z-index:20;display:flex;flex-direction:column}
+#player .stage{min-width:0;min-height:0;overflow:hidden}
+#player video,#player iframe{max-width:100%}
+.pbar,.pctl,.pstrip{min-width:0;max-width:100%;box-sizing:border-box}
 .pbar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--ground);border-bottom:1px solid var(--line)}
 .iconbtn{width:44px;height:44px;border-radius:22px;border:0;background:transparent;color:var(--text);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
 .iconbtn:hover{background:var(--raised)}
@@ -152,6 +156,9 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 .pbar .ptitle{flex:1;min-width:0;display:flex;flex-direction:column;font-weight:700;line-height:1.35}
 .pbar .ptitle span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pseries{font-size:12px;color:var(--accent);font-weight:500}
+button.pseries{all:unset;cursor:pointer;font-size:13px;color:var(--accent);font-weight:600;display:inline-flex;align-items:center;gap:4px;max-width:100%;min-height:24px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:underline;text-underline-offset:3px}
+button.pseries:focus-visible{outline:2px solid var(--accent);border-radius:4px}
+button.pseries[hidden]{display:none}
 .pseries:empty{display:none}
 .pbar a{color:var(--muted);font-size:13px;min-height:44px;display:inline-flex;align-items:center;padding:0 6px;white-space:nowrap}
 .stage{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;background:#000}
@@ -343,7 +350,7 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 <div id="player" hidden>
   <div class="pbar">
     <button class="iconbtn" id="btnClose" type="button" aria-label="رجوع"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
-    <div class="ptitle"><span class="pseries" id="pseries"></span><span id="ptitle"></span></div>
+    <div class="ptitle"><button class="pseries" id="pseries" type="button"></button><span id="ptitle"></span></div>
     <button class="iconbtn" id="pFav" type="button" aria-pressed="false" aria-label="أضف للمفضلة"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.6-9.2C1 8 3 4.5 6.6 4.5c2.1 0 3.6 1.1 5.4 3.1 1.8-2 3.3-3.1 5.4-3.1C21 4.5 23 8 21.6 11.3 19.5 15.9 12 20.5 12 20.5z"></path></svg></button>
     <button class="iconbtn" id="pDl" type="button" aria-label="تحميل للمشاهدة بدون إنترنت"></button>
     <a id="openDrive" href="#" target="_blank" rel="noopener">فتح في Drive</a>
@@ -667,6 +674,7 @@ window.addEventListener('popstate', function (e) {
   dlOnly = s.d || '';
   if (s.v === 'folder' && nodes[s.cur]) { view = 'folder'; cur = s.cur; } else { view = 'home'; if (s.f && (s.f !== 'dl' || !IS_TV)) filter = offline ? 'dl' : s.f; }
   render(); var y = s.y || 0; requestAnimationFrame(function () { window.scrollTo(0, y); });
+  if (pendingOpen) { var po = pendingOpen; pendingOpen = null; if (!(view === 'folder' && cur === po.id)) open(po); }
 });
 function open(n) {
   if (n.folder) { navPush(); dlOnly = ''; view = 'folder'; cur = n.id; query = ''; $('q').value = ''; render(); window.scrollTo(0, 0); var s = navState(); try { history.replaceState(s, ''); } catch (e) {} return; }
@@ -1348,7 +1356,10 @@ function play(i) {
   stopVideo();
   qIndex = i; var v = queue[i], st = $('stage'), t = titleOf(v), d = done();
   st.textContent = '';
-  $('pseries').textContent = t !== v ? t.name : '';
+  var home_ = t !== v ? t : (v.parent && nodes[v.parent] && v.parent !== rootKey ? nodes[v.parent] : null);
+  $('pseries').textContent = home_ ? home_.name : ''; $('pseries').hidden = !home_;
+  if (home_) $('pseries').setAttribute('aria-label', 'ارجع لصفحة ' + home_.name);
+  $('pseries').onclick = function () { if (home_) goTitle(home_); };
   $('ptitle').textContent = dispSeason(v);
   var multi = queue.length > 1;
   $('btnPrev').hidden = $('btnNext').hidden = !multi; $('pstrip').hidden = !multi;
@@ -1373,11 +1384,16 @@ function play(i) {
   else if (offline) st.appendChild(el('div', 'demo', 'هذه الحلقة غير محمّلة. اتصل بالإنترنت لمشاهدتها.'));
   else driveFrame(v, st);
   if ($('player').hidden) navPush({ p: 1 });
-  $('player').hidden = false;
+  $('player').hidden = false; document.body.classList.add('playing');
   var curEl = strip.querySelector('[aria-current]'); if (curEl) curEl.scrollIntoView({ block: 'nearest', inline: 'center' });
 }
-function closePlayer() { stopVideo(); $('stage').textContent = ''; $('player').hidden = true; render(); }
-$('btnClose').onclick = function () { if (history.state && history.state.p) { history.back(); return; } stopVideo(); $('stage').textContent = ''; $('player').hidden = true; render(); if (token && !demo && !offline && !tokenFresh()) renew(); };
+var pendingOpen = null;
+function goTitle(t) {
+  if (history.state && history.state.p) { pendingOpen = t; history.back(); return; }
+  closePlayer(); if (!(view === 'folder' && cur === t.id)) open(t);
+}
+function closePlayer() { document.body.classList.remove('playing'); stopVideo(); $('stage').textContent = ''; $('player').hidden = true; render(); }
+$('btnClose').onclick = function () { if (history.state && history.state.p) { history.back(); return; } closePlayer(); if (token && !demo && !offline && !tokenFresh()) renew(); };
 $('btnPrev').onclick = function () { if (qIndex > 0) play(qIndex - 1); };
 $('btnNext').onclick = function () { if (qIndex < queue.length - 1) play(qIndex + 1); };
 $('btnDone').onclick = function () { markDone(queue[qIndex]); if (qIndex < queue.length - 1) play(qIndex + 1); else $('btnClose').onclick(); };
