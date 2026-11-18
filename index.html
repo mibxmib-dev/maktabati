@@ -118,6 +118,30 @@ button{cursor:pointer}
 .msg{font-size:14px;color:var(--warn);background:#2A1F1C;border:1px solid #4A322C;border-radius:10px;padding:10px 12px}
 details{border-top:1px solid var(--line);padding-top:12px}
 .brand{display:inline-flex;align-items:center}
+/* الساعة والتاريخ */
+.clock{display:flex;flex-direction:column;line-height:1.25;min-width:0;margin-inline-start:auto;text-align:end}
+.clock b{font-size:16px;font-variant-numeric:tabular-nums;color:var(--text)}
+.clock span{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clock .clknext{color:var(--accent)}
+/* تذكير الصلاة */
+.prayer{position:fixed;left:50%;bottom:max(24px,env(safe-area-inset-bottom));z-index:2147483647;display:flex;gap:12px;align-items:center;width:max-content;max-width:calc(100vw - 24px);background:var(--raised);border:1px solid var(--accent);border-radius:18px;padding:12px 18px;box-shadow:0 18px 40px rgba(0,0,0,.6);transform:translate(-50%,160%);opacity:0;transition:transform .6s cubic-bezier(.2,.8,.2,1),opacity .5s ease}
+.prayer.up{transform:translate(-50%,0);opacity:1}
+.prayer[hidden]{display:none}
+.pricon{font-size:28px;line-height:1}
+.prtext{display:flex;flex-direction:column}
+.prtext b{font-size:18px}
+.prtext span{color:var(--accent);font-size:14px;font-weight:600}
+.prtimes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.prtimes div{border:1px solid var(--line);border-radius:12px;padding:8px;text-align:center;font-size:13px;color:var(--muted)}
+.prtimes div b{display:block;font-size:16px;color:var(--text);font-variant-numeric:tabular-nums}
+.prtimes div.next{border-color:var(--accent)}
+.prtimes div.next b{color:var(--accent)}
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px}
+.switch{position:relative;width:52px;height:30px;border-radius:15px;border:1px solid var(--line);background:var(--ground);cursor:pointer;flex:none}
+.switch::after{content:"";position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:var(--muted);transition:transform .2s,background .2s}
+.switch[aria-checked="true"]{background:var(--accent);border-color:var(--accent)}
+.switch[aria-checked="true"]::after{transform:translateX(-22px);background:var(--on-accent)}
+.setsel{min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--ground);color:var(--text);font:inherit;padding:0 12px}
 .top h1 .brand{font-family:var(--script);font-weight:400;font-size:24px;color:var(--accent);line-height:1}
 summary{cursor:pointer;font-size:14px;color:var(--muted);min-height:32px}
 .field{display:flex;flex-direction:column;gap:6px;margin-top:12px}
@@ -405,6 +429,7 @@ button.pseries[hidden]{display:none}
 <div id="library" hidden>
   <header class="top"><div class="wrap">
     <h1><button id="btnHome" type="button" aria-label="الرئيسية"><span class="brand">home movie</span></button></h1>
+    <div class="clock" id="clock"><b id="clkTime"></b><span id="clkDate"></span><span class="clknext" id="clkNext"></span></div>
     <span class="badge" id="demoBadge" hidden>عرض تجريبي</span>
     <span class="who" id="who" hidden></span>
     <input class="search" id="q" type="search" autocomplete="off" placeholder="ابحث عن فيلم أو مسلسل أو حلقة" aria-label="بحث في المكتبة">
@@ -428,6 +453,7 @@ button.pseries[hidden]{display:none}
 </div>
 
 <div class="toast" id="toast" role="status" hidden></div>
+<div class="prayer" id="prayerBox" role="status" aria-live="polite" hidden><div class="pricon" aria-hidden="true">🕌</div><div class="prtext"><b>لا تنسَ الصلاة</b><span id="prayerTitle"></span></div></div>
 <div id="player" hidden>
   <div class="pbar">
     <button class="iconbtn" id="btnClose" type="button" aria-label="رجوع"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
@@ -983,6 +1009,92 @@ function offlineButton() { var n = Object.keys(jget('dl', {})).length; $('btnOff
 $('btnOffline').onclick = function () { Intro.stop && Intro.stop(); openOffline(); };
 
 /* ===== أجواء الشتاء ===== */
+/* ===== الساعة والتاريخ ومواقيت الصلاة (أم القرى) ===== */
+var CITIES = [
+  ['riyadh', 'الرياض', 24.7136, 46.6753], ['jeddah', 'جدة', 21.4858, 39.1925], ['makkah', 'مكة المكرمة', 21.3891, 39.8579],
+  ['madinah', 'المدينة المنورة', 24.5247, 39.5692], ['dammam', 'الدمام', 26.4207, 50.0888], ['khobar', 'الخبر', 26.2172, 50.1971],
+  ['taif', 'الطائف', 21.2703, 40.4158], ['abha', 'أبها', 18.2164, 42.5053], ['tabuk', 'تبوك', 28.3835, 36.5662],
+  ['buraydah', 'بريدة', 26.326, 43.975], ['hail', 'حائل', 27.5114, 41.7208], ['jazan', 'جازان', 16.8892, 42.5511],
+  ['najran', 'نجران', 17.4924, 44.1277], ['ahsa', 'الأحساء', 25.3833, 49.5833], ['jubail', 'الجبيل', 27.0174, 49.6225],
+  ['yanbu', 'ينبع', 24.0895, 38.0618], ['arar', 'عرعر', 30.9753, 41.0381], ['sakaka', 'سكاكا', 29.9697, 40.2064], ['baha', 'الباحة', 20.0129, 41.4677]
+];
+var PRAYERS = [['fajr', 'الفجر'], ['dhuhr', 'الظهر'], ['asr', 'العصر'], ['maghrib', 'المغرب'], ['isha', 'العشاء']];
+function prayerTimes(date, lat, lng, tz) {
+  var D2R = Math.PI / 180, R2D = 180 / Math.PI;
+  function fix(a, b) { a = a - b * Math.floor(a / b); return a < 0 ? a + b : a; }
+  function sin(d) { return Math.sin(d * D2R); } function cos(d) { return Math.cos(d * D2R); } function tan(d) { return Math.tan(d * D2R); }
+  function asin(x) { return R2D * Math.asin(x); } function acos(x) { return R2D * Math.acos(Math.max(-1, Math.min(1, x))); }
+  function atan2(y, x) { return R2D * Math.atan2(y, x); } function acot(x) { return R2D * Math.atan(1 / x); }
+  var y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
+  if (m <= 2) { y -= 1; m += 12; }
+  var A = Math.floor(y / 100), B = 2 - A + Math.floor(A / 4);
+  var jd0 = Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + d + B - 1524.5 - lng / 360;
+  function sun(jd) {
+    var D = jd - 2451545, g = fix(357.529 + .98560028 * D, 360), q = fix(280.459 + .98564736 * D, 360);
+    var L = fix(q + 1.915 * sin(g) + .02 * sin(2 * g), 360), e = 23.439 - .00000036 * D;
+    return { decl: asin(sin(e) * sin(L)), eqt: q / 15 - fix(atan2(cos(e) * sin(L), cos(L)) / 15, 24) };
+  }
+  function noon(t) { return fix(12 - sun(jd0 + t / 24).eqt, 24); }
+  function at(angle, t, ccw) { var s = sun(jd0 + t / 24), h = acos((-sin(angle) - sin(s.decl) * sin(lat)) / (cos(s.decl) * cos(lat))) / 15; return noon(t) + (ccw ? -h : h); }
+  function asr(t) { var s = sun(jd0 + t / 24); return at(-acot(1 + tan(Math.abs(lat - s.decl))), t); }
+  var T = { fajr: 5, sunrise: 6, dhuhr: 12, asr: 13, maghrib: 18 };
+  for (var i = 0; i < 2; i++) T = { fajr: at(18.5, T.fajr, true), sunrise: at(.833, T.sunrise, true), dhuhr: noon(T.dhuhr), asr: asr(T.asr), maghrib: at(.833, T.maghrib) };
+  var adj = tz - lng / 15, out = {};
+  for (var k in T) out[k] = T[k] + adj;
+  out.dhuhr += 1 / 60; out.maghrib += 1 / 60;
+  /* أم القرى: العشاء بعد المغرب بساعة ونص، وفي رمضان ساعتين */
+  var ram = false; try { ram = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', { month: 'numeric' }).format(date) === '9'; } catch (e) {}
+  out.isha = out.maghrib + (ram ? 2 : 1.5);
+  return out;
+}
+var Pray = {
+  city: function () { var id = lget('mk_city') || 'riyadh'; return CITIES.filter(function (c) { return c[0] === id; })[0] || CITIES[0]; },
+  on: function () { return lget('mk_pray') === 'on'; },
+  /* مواقيت يوم معيّن كأوقات فعلية بتوقيت السعودية */
+  day: function (d) {
+    var c = Pray.city(), r = prayerTimes(d, c[2], c[3], 3), base = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - 3 * 3600e3, out = {};
+    PRAYERS.forEach(function (p) { out[p[0]] = new Date(base + Math.round(r[p[0]] * 60) * 60e3); });
+    return out;
+  },
+  next: function (now) {
+    var t = Pray.day(now), n = null;
+    PRAYERS.forEach(function (p) { if (!n && t[p[0]] > now) n = { id: p[0], name: p[1], at: t[p[0]] }; });
+    if (!n) { var tm = new Date(now.getTime() + 864e5); n = { id: 'fajr', name: 'الفجر', at: Pray.day(tm).fajr }; }
+    return n;
+  }
+};
+function fmtClock(d) { try { return d.toLocaleTimeString('ar-SA-u-nu-latn', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Riyadh' }); } catch (e) { return d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0'); } }
+function fmtDate(d) {
+  var g = '', h = '';
+  try { g = d.toLocaleDateString('ar-SA-u-nu-latn-ca-gregory', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Riyadh' }); } catch (e) {}
+  try { h = d.toLocaleDateString('ar-SA-u-nu-latn-ca-islamic-umalqura', { day: 'numeric', month: 'long', timeZone: 'Asia/Riyadh' }); } catch (e) {}
+  return g + (h ? ' · ' + h : '');
+}
+function inMins(ms) { var m = Math.max(1, Math.round(ms / 60e3)); return m < 60 ? m + ' د' : Math.floor(m / 60) + ' س ' + (m % 60 ? (m % 60) + ' د' : ''); }
+var shownPrayer = '';
+function tickClock() {
+  var now = new Date();
+  $('clkTime').textContent = fmtClock(now); $('clkDate').textContent = fmtDate(now);
+  var nx = Pray.next(now); $('clkNext').textContent = nx.name + ' ' + fmtClock(nx.at) + ' · بعد ' + inMins(nx.at - now);
+  /* التذكير: بعد الأذان بنص ساعة (مرة وحدة لكل صلاة) */
+  if (!Pray.on()) return;
+  var t = Pray.day(now), key = now.toDateString();
+  PRAYERS.forEach(function (p) {
+    var k = key + p[0], diff = now - t[p[0]] - 30 * 60e3;
+    if (diff >= 0 && diff < 120e3 && shownPrayer !== k && lget('mk_prdone') !== k) { shownPrayer = k; lset('mk_prdone', k); showPrayer(p[1]); }
+  });
+}
+/* الرسالة ترتفع من تحت، تبقى ثانيتين، ثم تنزل وتختفي */
+function showPrayer(name) {
+  var bx = $('prayerBox'); $('prayerTitle').textContent = 'صلاة ' + name;
+  var fs = document.fullscreenElement || document.webkitFullscreenElement; (fs || document.body).appendChild(bx);
+  bx.hidden = false; bx.classList.remove('up');
+  requestAnimationFrame(function () { requestAnimationFrame(function () { bx.classList.add('up'); }); });
+  try { if (navigator.vibrate) navigator.vibrate(150); } catch (e) {}
+  clearTimeout(bx._t); bx._t = setTimeout(function () { bx.classList.remove('up'); bx._t = setTimeout(function () { bx.hidden = true; }, 650); }, 2600);
+}
+setInterval(tickClock, 15000); document.addEventListener('visibilitychange', function () { if (!document.hidden) tickClock(); });
+
 /* ===== الثيم (من الإعدادات): الخلفية واللون الرئيسي ===== */
 var ACCENTS = [
   { id: 'gold', name: 'ذهبي', c: '#F4C27A', on: '#2A1606' },
@@ -1003,6 +1115,7 @@ var Theme = {
 };
 new MutationObserver(function () { Theme.apply(); }).observe($('library'), { attributes: true, attributeFilter: ['hidden'] });
 Theme.apply();
+tickClock();
 var WX = (function () {
   var cv = $('wx'), cx = cv.getContext('2d'), mode = lget('mk_wx') || 'off', parts = [], raf = 0, w = 0, h = 0, dpr = 1, last = 0;
   var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1483,8 +1596,24 @@ function renderSettings(box) {
     acs.appendChild(b);
   });
   sec.appendChild(acs);
-  sec.appendChild(el('p', 'setnote', 'التغييرات تنحفظ تلقائياً. الثلج والمطر تتحكم فيهم من زر الثلج في الصفحة الرئيسية.'));
+  sec.appendChild(el('p', 'setnote', 'الثلج والمطر تتحكم فيهم من زر الثلج في الصفحة الرئيسية.'));
   box.appendChild(sec);
+  /* الصلاة */
+  var ps = el('section', 'setsec'); ps.appendChild(el('h3', '', 'تذكير الصلاة'));
+  var row = el('div', 'setrow'); row.appendChild(el('span', '', 'رسالة «لا تنسَ الصلاة» بعد الأذان بنص ساعة'));
+  var sw = el('button', 'switch'); sw.type = 'button'; sw.setAttribute('role', 'switch'); sw.setAttribute('aria-label', 'تذكير الصلاة'); sw.setAttribute('aria-checked', String(Pray.on()));
+  sw.onclick = function () { lset('mk_pray', Pray.on() ? null : 'on'); tickClock(); render(); if (Pray.on()) showPrayer('العصر'); };
+  row.appendChild(sw); ps.appendChild(row);
+  var row2 = el('div', 'setrow'); var lb = el('label', '', 'المدينة'); lb.htmlFor = 'citySel'; row2.appendChild(lb);
+  var sel = el('select', 'setsel'); sel.id = 'citySel';
+  CITIES.forEach(function (c) { var o = document.createElement('option'); o.value = c[0]; o.textContent = c[1]; if (c[0] === Pray.city()[0]) o.selected = true; sel.appendChild(o); });
+  sel.onchange = function () { lset('mk_city', sel.value === 'riyadh' ? null : sel.value); tickClock(); render(); };
+  row2.appendChild(sel); ps.appendChild(row2);
+  var now = new Date(), t = Pray.day(now), nx = Pray.next(now), grid = el('div', 'prtimes');
+  PRAYERS.forEach(function (p) { var c = el('div', nx.id === p[0] && nx.at.toDateString() === now.toDateString() ? 'next' : ''); c.appendChild(el('b', '', fmtClock(t[p[0]]))); c.appendChild(document.createTextNode(p[1])); grid.appendChild(c); });
+  ps.appendChild(el('div', 'setlabel', 'مواقيت اليوم · ' + Pray.city()[1] + ' (تقويم أم القرى)')); ps.appendChild(grid);
+  ps.appendChild(el('p', 'setnote', 'الرسالة تطلع لثواني والتطبيق مفتوح، حتى وأنت تشاهد. لما تفعّله تطلع لك رسالة تجربة. التغييرات تنحفظ تلقائياً.'));
+  box.appendChild(ps);
   var done = el('button', 'btn primary setdone', 'تم'); done.type = 'button'; done.onclick = closeSettings; box.appendChild(done);
 }
 function closeSettings() { if (history.state && history.state.v === 'settings') history.back(); else goHome(); }
