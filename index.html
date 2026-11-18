@@ -284,6 +284,8 @@ button.pseries[hidden]{display:none}
 .stage{position:relative}
 .rotbtn{position:absolute;top:10px;right:10px;z-index:6;width:48px;height:48px;border-radius:24px;border:0;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:opacity .4s ease}
 .rotbtn.idle{opacity:0;pointer-events:none}
+.focusbtn{right:66px}
+#player.focus .pbar,#player.focus .pback,#player.focus .pctl,#player.focus .pstrip{display:none}
 .rotbtn:focus-visible{outline:2px solid var(--accent);opacity:1}
 .stage:fullscreen{background:#000}
 .stage video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
@@ -1650,27 +1652,40 @@ var ROT_OFF = 'M3 8h18a1.5 1.5 0 0 1 1.5 1.5v5A1.5 1.5 0 0 1 21 16H3a1.5 1.5 0 0
 function isFull() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
 function addRotate(st) {
   var b = el('button', 'rotbtn'); b.type = 'button';
-  function draw() { b.textContent = ''; var f = isFull(); b.appendChild(f ? icon(ROT_OFF, 26) : icon(ROT_ON, 26, true)); b.setAttribute('aria-label', f ? 'رجوع للوضع الطولي' : 'تدوير الشاشة وتكبير الفيديو'); }
+  var rotated = false;
+  function draw() { b.textContent = ''; var f = isFull() && rotated; b.appendChild(f ? icon(ROT_OFF, 26) : icon(ROT_ON, 26, true)); b.setAttribute('aria-label', f ? 'رجوع للوضع الطولي' : 'تدوير الشاشة وتكبير الفيديو'); }
   b.onclick = async function (e) {
     e.stopPropagation();
     try {
-      if (isFull()) { try { screen.orientation.unlock(); } catch (er) {} await (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
-      else { await (st.requestFullscreen || st.webkitRequestFullscreen).call(st); try { await screen.orientation.lock('landscape'); } catch (er) {} }
+      if (isFull() && rotated) { rotated = false; try { screen.orientation.unlock(); } catch (er) {} await (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
+      else { if (!isFull()) await (st.requestFullscreen || st.webkitRequestFullscreen).call(st); rotated = true; try { await screen.orientation.lock('landscape'); } catch (er) {} }
     } catch (er) { toast('ما قدرت أكبّر الشاشة في هذا المتصفح.'); }
     draw(); wake();
   };
+  /* زر «الفيديو بس»: يخفي كل شي ويخلي الفيديو لحاله على الشاشة بدون ما يقلب الجوال، وضغطة ثانية ترجع كل شي */
+  var f = el('button', 'rotbtn focusbtn'); f.type = 'button';
+  function drawF() { f.textContent = ''; var on = isFull() || $('player').classList.contains('focus'); f.appendChild(icon(on ? 'M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5' : 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5', 24)); f.setAttribute('aria-label', on ? 'إظهار كل شي' : 'الفيديو بس'); }
+  f.onclick = async function (e) {
+    e.stopPropagation();
+    if ($('player').classList.contains('focus')) { $('player').classList.remove('focus'); drawF(); wake(); return; }
+    try {
+      if (isFull()) { try { screen.orientation.unlock(); } catch (er) {} await (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
+      else await (st.requestFullscreen || st.webkitRequestFullscreen).call(st);
+    } catch (er) { $('player').classList.add('focus'); }
+    drawF(); draw(); wake();
+  };
   /* يختفي الزر بعد ثواني مع أزرار الفيديو، ويرجع إذا لمست الشاشة */
-  var hideT = 0; function wake() { b.classList.remove('idle'); clearTimeout(hideT); hideT = setTimeout(function () { b.classList.add('idle'); }, 3000); }
+  var hideT = 0; function wake() { b.classList.remove('idle'); f.classList.remove('idle'); clearTimeout(hideT); hideT = setTimeout(function () { b.classList.add('idle'); f.classList.add('idle'); }, 3000); }
   st.addEventListener('pointerdown', wake); st.addEventListener('pointermove', wake);
-  document.addEventListener('fullscreenchange', function () { draw(); if (!isFull()) { try { screen.orientation.unlock(); } catch (er) {} } });
-  draw(); wake(); st.appendChild(b);
+  document.addEventListener('fullscreenchange', function () { if (!isFull()) { rotated = false; try { screen.orientation.unlock(); } catch (er) {} } draw(); drawF(); });
+  draw(); drawF(); wake(); st.appendChild(b); st.appendChild(f);
 }
 function startVideo(v, st) {
   var vd = document.createElement('video'); vd.controls = true; vd.playsInline = true; vd.preload = 'metadata';
   /* نشيل زر ملء الشاشة الأصلي وخيار النافذة العائمة، ونحط زر التدوير حقنا */
-  vd.setAttribute('controlsList', 'nofullscreen nodownload'); vd.disablePictureInPicture = true;
+  if (!IS_TV) { vd.setAttribute('controlsList', 'nofullscreen nodownload'); vd.disablePictureInPicture = true; }
   vd.src = demo ? 'assets/demo.mp4' : 'stream/' + encodeURIComponent(v.id) + '?t=' + encodeURIComponent(token || '');
-  st.appendChild(vd); curVideo = { v: v, el: vd }; addRotate(st);
+  st.appendChild(vd); curVideo = { v: v, el: vd }; if (!IS_TV) addRotate(st);
   var saved = 0, failed = false;
   vd.addEventListener('timeupdate', function () {
     if (Date.now() - saved > 4000) { savePos(v, vd); saved = Date.now(); }
@@ -1759,7 +1774,7 @@ function goTitle(t) {
   query = ''; $('q').value = ''; dlOnly = ''; view = 'folder'; cur = t.id; render(); window.scrollTo(0, 0);
   try { if (inPlayer) history.replaceState(navState(), ''); else history.pushState(navState(), ''); } catch (e) {}
 }
-function closePlayer() { if (isFull()) { try { screen.orientation.unlock(); } catch (e) {} try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) {} } document.body.classList.remove('playing'); stopVideo(); $('stage').textContent = ''; $('player').hidden = true; render(); }
+function closePlayer() { $('player').classList.remove('focus'); if (isFull()) { try { screen.orientation.unlock(); } catch (e) {} try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) {} } document.body.classList.remove('playing'); stopVideo(); $('stage').textContent = ''; $('player').hidden = true; render(); }
 $('btnClose').onclick = function () { if (history.state && history.state.p) { history.back(); return; } closePlayer(); if (token && !demo && !offline && !tokenFresh()) renew(); };
 $('btnPrev').onclick = function () { if (qIndex > 0) play(qIndex - 1); };
 $('btnNext').onclick = function () { if (qIndex < queue.length - 1) play(qIndex + 1); };
