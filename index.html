@@ -1400,8 +1400,12 @@ function play(i) {
 }
 var pendingOpen = null;
 function goTitle(t) {
-  if (history.state && history.state.p) { pendingOpen = t; history.back(); return; }
-  closePlayer(); if (!(view === 'folder' && cur === t.id)) open(t);
+  var inPlayer = history.state && history.state.p;
+  /* إذا كانت الصفحة اللي وراه هي صفحة المسلسل نفسها: نقفل المشغّل بس */
+  if (view === 'folder' && cur === t.id) { if (inPlayer) history.back(); else closePlayer(); return; }
+  closePlayer();
+  query = ''; $('q').value = ''; dlOnly = ''; view = 'folder'; cur = t.id; render(); window.scrollTo(0, 0);
+  try { if (inPlayer) history.replaceState(navState(), ''); else history.pushState(navState(), ''); } catch (e) {}
 }
 function closePlayer() { document.body.classList.remove('playing'); stopVideo(); $('stage').textContent = ''; $('player').hidden = true; render(); }
 $('btnClose').onclick = function () { if (history.state && history.state.p) { history.back(); return; } closePlayer(); if (token && !demo && !offline && !tokenFresh()) renew(); };
