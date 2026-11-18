@@ -258,6 +258,10 @@ button.pseries[hidden]{display:none}
 
 /* المشغّل: الاستكمال */
 .stage{position:relative}
+.rotbtn{position:absolute;top:10px;right:10px;z-index:6;width:48px;height:48px;border-radius:24px;border:0;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:opacity .4s ease}
+.rotbtn.idle{opacity:0;pointer-events:none}
+.rotbtn:focus-visible{outline:2px solid var(--accent);opacity:1}
+.stage:fullscreen{background:#000}
 .stage video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
 .resume{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;background:rgba(10,6,6,.82);text-align:center}
 .rtitle{margin:0;font-size:18px;font-weight:700}
@@ -1511,10 +1515,33 @@ function stopVideo() {
   clearInterval(nextTimer); nextTimer = 0;
   if (curVideo) { savePos(curVideo.v, curVideo.el); try { curVideo.el.pause(); curVideo.el.removeAttribute('src'); curVideo.el.load(); } catch (e) {} curVideo = null; }
 }
+/* زر تدوير الجوال: يكبّر الفيديو لكامل الشاشة ويقلبها بالعرض، وضغطة ثانية ترجعه */
+var ROT_ON = 'M16.48 2.52c3.27 1.55 5.61 4.72 5.97 8.48h1.5C23.44 4.84 18.29 0 12 0l-.66.03 3.81 3.81 1.33-1.32zm-6.25-.77c-.59-.59-1.54-.59-2.12 0L1.75 8.11c-.59.59-.59 1.54 0 2.12l12.02 12.02c.59.59 1.54.59 2.12 0l6.36-6.36c.59-.59.59-1.54 0-2.12L10.23 1.75zm4.6 19.44L2.81 9.17l6.36-6.36 12.02 12.02-6.36 6.36zm-7.31.29C4.25 19.94 1.91 16.76 1.55 13H.05C.56 19.16 5.71 24 12 24l.66-.03-3.81-3.81-1.33 1.32z';
+var ROT_OFF = 'M3 8h18a1.5 1.5 0 0 1 1.5 1.5v5A1.5 1.5 0 0 1 21 16H3a1.5 1.5 0 0 1-1.5-1.5v-5A1.5 1.5 0 0 1 3 8zM18 11v2';
+function isFull() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function addRotate(st) {
+  var b = el('button', 'rotbtn'); b.type = 'button';
+  function draw() { b.textContent = ''; var f = isFull(); b.appendChild(f ? icon(ROT_OFF, 26) : icon(ROT_ON, 26, true)); b.setAttribute('aria-label', f ? 'رجوع للوضع الطولي' : 'تدوير الشاشة وتكبير الفيديو'); }
+  b.onclick = async function (e) {
+    e.stopPropagation();
+    try {
+      if (isFull()) { try { screen.orientation.unlock(); } catch (er) {} await (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
+      else { await (st.requestFullscreen || st.webkitRequestFullscreen).call(st); try { await screen.orientation.lock('landscape'); } catch (er) {} }
+    } catch (er) { toast('ما قدرت أكبّر الشاشة في هذا المتصفح.'); }
+    draw(); wake();
+  };
+  /* يختفي الزر بعد ثواني مع أزرار الفيديو، ويرجع إذا لمست الشاشة */
+  var hideT = 0; function wake() { b.classList.remove('idle'); clearTimeout(hideT); hideT = setTimeout(function () { b.classList.add('idle'); }, 3000); }
+  st.addEventListener('pointerdown', wake); st.addEventListener('pointermove', wake);
+  document.addEventListener('fullscreenchange', function () { draw(); if (!isFull()) { try { screen.orientation.unlock(); } catch (er) {} } });
+  draw(); wake(); st.appendChild(b);
+}
 function startVideo(v, st) {
   var vd = document.createElement('video'); vd.controls = true; vd.playsInline = true; vd.preload = 'metadata';
+  /* نشيل زر ملء الشاشة الأصلي وخيار النافذة العائمة، ونحط زر التدوير حقنا */
+  vd.setAttribute('controlsList', 'nofullscreen nodownload'); vd.disablePictureInPicture = true;
   vd.src = demo ? 'assets/demo.mp4' : 'stream/' + encodeURIComponent(v.id) + '?t=' + encodeURIComponent(token || '');
-  st.appendChild(vd); curVideo = { v: v, el: vd };
+  st.appendChild(vd); curVideo = { v: v, el: vd }; addRotate(st);
   var saved = 0, failed = false;
   vd.addEventListener('timeupdate', function () {
     if (Date.now() - saved > 4000) { savePos(v, vd); saved = Date.now(); }
@@ -1603,7 +1630,7 @@ function goTitle(t) {
   query = ''; $('q').value = ''; dlOnly = ''; view = 'folder'; cur = t.id; render(); window.scrollTo(0, 0);
   try { if (inPlayer) history.replaceState(navState(), ''); else history.pushState(navState(), ''); } catch (e) {}
 }
-function closePlayer() { document.body.classList.remove('playing'); stopVideo(); $('stage').textContent = ''; $('player').hidden = true; render(); }
+function closePlayer() { if (isFull()) { try { screen.orientation.unlock(); } catch (e) {} try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) {} } document.body.classList.remove('playing'); stopVideo(); $('stage').textContent = ''; $('player').hidden = true; render(); }
 $('btnClose').onclick = function () { if (history.state && history.state.p) { history.back(); return; } closePlayer(); if (token && !demo && !offline && !tokenFresh()) renew(); };
 $('btnPrev').onclick = function () { if (qIndex > 0) play(qIndex - 1); };
 $('btnNext').onclick = function () { if (qIndex < queue.length - 1) play(qIndex + 1); };
