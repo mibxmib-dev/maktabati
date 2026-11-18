@@ -208,6 +208,9 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 .dlall{flex-wrap:wrap;gap:8px}
 .dlhead{display:flex;align-items:center;gap:12px;margin:18px 0 8px}
 .dlhead img{width:48px;height:64px;object-fit:cover;border-radius:8px;flex:none}
+.dlhead.link{cursor:pointer;border-radius:12px;padding:4px}
+.dlhead.link>div{flex:1}
+.dlgo{font-size:24px;color:var(--muted);padding:0 8px}
 .dlt{font-size:17px;font-weight:600;color:var(--text)}
 .dlc{font-size:13px;color:var(--muted);margin-top:2px}
 .epdl.on{color:var(--accent)}
@@ -642,8 +645,21 @@ function continueList() {
     .map(function (id) { return nodes[id]; })
     .filter(function (t) { if (!t) return false; var r = resumePoint(t); return r.ep && !(done()[r.ep.id] && !r.next); }).slice(0, 12);
 }
+/* زر الرجوع في الجوال: يرجعك للصفحة اللي قبل بدل ما يقفل التطبيق */
+function navState() { return { v: view, cur: cur, f: filter, y: window.scrollY }; }
+function navPush(extra) {
+  try { history.replaceState(Object.assign(navState(), history.state && history.state.p ? { p: 1 } : {}), ''); history.pushState(Object.assign(navState(), extra || {}), ''); } catch (e) {}
+}
+window.addEventListener('popstate', function (e) {
+  var s = e.state || { v: 'home' };
+  if (!$('player').hidden) { closePlayer(); if (s.p) return; }
+  if (s.p) { history.back(); return; }
+  query = ''; $('q').value = '';
+  if (s.v === 'folder' && nodes[s.cur]) { view = 'folder'; cur = s.cur; } else { view = 'home'; if (s.f && (s.f !== 'dl' || !IS_TV)) filter = offline ? 'dl' : s.f; }
+  render(); var y = s.y || 0; requestAnimationFrame(function () { window.scrollTo(0, y); });
+});
 function open(n) {
-  if (n.folder) { view = 'folder'; cur = n.id; query = ''; $('q').value = ''; render(); window.scrollTo(0, 0); return; }
+  if (n.folder) { navPush(); view = 'folder'; cur = n.id; query = ''; $('q').value = ''; render(); window.scrollTo(0, 0); var s = navState(); try { history.replaceState(s, ''); } catch (e) {} return; }
   playEpisode(n);
 }
 function playEpisode(v) {
@@ -793,6 +809,8 @@ function renderDownloads(box) {
     var r0 = byT[tid][0], hd = el('div', 'dlhead');
     if (r0.cover && blobs[r0.cover]) { var cv = document.createElement('img'); cv.alt = ''; cv.src = blobs[r0.cover]; hd.appendChild(cv); }
     var ht = el('div', ''); ht.appendChild(el('div', 'dlt', r0.tname)); if (r0.chName) ht.appendChild(el('div', 'dlc', r0.chName)); hd.appendChild(ht);
+    var tn = nodes[(offline ? 't-' : '') + tid];
+    if (tn && tn.folder) { hd.classList.add('link'); hd.setAttribute('role', 'button'); hd.tabIndex = 0; hd.setAttribute('aria-label', 'افتح ' + r0.tname); hd.onclick = function () { open(tn); }; hd.onkeydown = function (ev) { if (ev.key === 'Enter') open(tn); }; hd.appendChild(el('span', 'dlgo', '‹')); }
     box.appendChild(hd);
     var l = el('div', 'list');
     byT[tid].forEach(function (rec) {
@@ -1199,7 +1217,7 @@ function render() {
   } else renderHome(box);
   box.querySelectorAll('.row').forEach(function (r, i) { if (keep[i]) r.scrollLeft = keep[i]; });
 }
-function goHome() { view = 'home'; query = ''; $('q').value = ''; render(); window.scrollTo(0, 0); }
+function goHome() { if (view !== 'home') navPush(); view = 'home'; query = ''; $('q').value = ''; render(); window.scrollTo(0, 0); }
 function openLibrary() {
   offline = false;
   $('signin').hidden = true; $('library').hidden = false; $('demoBadge').hidden = !demo;
@@ -1298,10 +1316,12 @@ function play(i) {
   if (demo || canStream() || (isDl(v.id) && swReady())) startVideo(v, st);
   else if (offline) st.appendChild(el('div', 'demo', 'هذه الحلقة غير محمّلة. اتصل بالإنترنت لمشاهدتها.'));
   else driveFrame(v, st);
+  if ($('player').hidden) navPush({ p: 1 });
   $('player').hidden = false;
   var curEl = strip.querySelector('[aria-current]'); if (curEl) curEl.scrollIntoView({ block: 'nearest', inline: 'center' });
 }
-$('btnClose').onclick = function () { stopVideo(); $('stage').textContent = ''; $('player').hidden = true; render(); if (token && !demo && !offline && !tokenFresh()) renew(); };
+function closePlayer() { stopVideo(); $('stage').textContent = ''; $('player').hidden = true; render(); }
+$('btnClose').onclick = function () { if (history.state && history.state.p) { history.back(); return; } stopVideo(); $('stage').textContent = ''; $('player').hidden = true; render(); if (token && !demo && !offline && !tokenFresh()) renew(); };
 $('btnPrev').onclick = function () { if (qIndex > 0) play(qIndex - 1); };
 $('btnNext').onclick = function () { if (qIndex < queue.length - 1) play(qIndex + 1); };
 $('btnDone').onclick = function () { markDone(queue[qIndex]); if (qIndex < queue.length - 1) play(qIndex + 1); else $('btnClose').onclick(); };
