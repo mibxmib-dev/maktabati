@@ -112,7 +112,13 @@ header.top{position:sticky;top:0;background:var(--ground);border-bottom:1px soli
 .who{font-size:12px;color:var(--muted);direction:ltr;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .badge{font-size:12px;color:var(--on-accent);background:var(--accent);border-radius:20px;padding:2px 10px;font-weight:700}
 .status{font-size:13px;color:var(--muted);padding:10px 0 0}
-main{padding-bottom:48px}
+main{padding-bottom:48px;position:relative;z-index:2}
+/* أجواء الشتاء: ثلج أو مطر خلف المحتوى، ما يغطي الأغلفة ولا يمنع اللمس */
+#wx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;display:none}
+body.wx-on #wx{display:block}
+body.playing #wx{display:none}
+.wxbtn{flex:none}
+.wxbtn.on{color:var(--accent)}
 .rowhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:22px 0 10px}
 .rowhead h2{margin:0;font-size:18px;font-weight:700}
 .rowhead button{background:none;border:0;color:var(--muted);min-height:44px;font-size:14px;text-decoration:underline}
@@ -336,12 +342,14 @@ button.pseries[hidden]{display:none}
   </div>
 </section>
 
+<canvas id="wx" aria-hidden="true"></canvas>
 <div id="library" hidden>
   <header class="top"><div class="wrap">
     <h1><button id="btnHome" type="button" aria-label="الرئيسية"><span class="brand">home movie</span></button></h1>
     <span class="badge" id="demoBadge" hidden>عرض تجريبي</span>
     <span class="who" id="who" hidden></span>
     <input class="search" id="q" type="search" autocomplete="off" placeholder="ابحث عن فيلم أو مسلسل أو حلقة" aria-label="بحث في المكتبة">
+    <button class="iconbtn wxbtn" id="btnWx" type="button" aria-label="أجواء الشتاء: متوقفة"></button>
     <button class="btn small" id="btnRefresh" type="button">تحديث</button>
     <button class="btn small" id="btnSignout" type="button">تسجيل الخروج</button>
   </div></header>
@@ -905,6 +913,67 @@ function hasDl() { return Object.keys(jget('dl', {})).length > 0; }
 function noNet(e) { return !navigator.onLine || (e && e.name === 'TypeError'); }
 function offlineButton() { var n = Object.keys(jget('dl', {})).length; $('btnOffline').hidden = !n; if (n) $('btnOffline').textContent = 'التحميلات (' + n + ') — تعمل بدون إنترنت'; }
 $('btnOffline').onclick = function () { Intro.stop && Intro.stop(); openOffline(); };
+
+/* ===== أجواء الشتاء ===== */
+var WX = (function () {
+  var cv = $('wx'), cx = cv.getContext('2d'), mode = lget('mk_wx') || 'off', parts = [], raf = 0, w = 0, h = 0, dpr = 1, last = 0;
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var ICONS = {
+    off: 'M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9',
+    snow: 'M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9M9.5 4.5L12 6l2.5-1.5M9.5 19.5L12 18l2.5 1.5',
+    rain: 'M7 15a4 4 0 0 1 .5-8A5.5 5.5 0 0 1 18 8.5a3.5 3.5 0 0 1-.5 6.5H7zM8 18l-1 2.5M12 18l-1 2.5M16 18l-1 2.5'
+  };
+  var LABEL = { off: 'متوقفة', snow: 'ثلج', rain: 'مطر' };
+  function size() { dpr = Math.min(2, window.devicePixelRatio || 1); w = innerWidth; h = innerHeight; cv.width = w * dpr; cv.height = h * dpr; cx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+  function make(top) {
+    if (mode === 'snow') return { x: Math.random() * w, y: top ? -10 : Math.random() * h, r: 1 + Math.random() * 2.6, v: 18 + Math.random() * 38, s: Math.random() * 6.28, a: 0.35 + Math.random() * 0.5 };
+    return { x: Math.random() * (w + 120), y: top ? -30 : Math.random() * h, l: 10 + Math.random() * 16, v: 520 + Math.random() * 380, a: 0.12 + Math.random() * 0.22 };
+  }
+  function count() { var n = Math.round(w * h / (mode === 'snow' ? 9000 : 6500)); return Math.max(30, Math.min(mode === 'snow' ? 140 : 180, n)) / (IS_TV ? 2 : 1); }
+  function fill() { parts = []; for (var i = 0, n = count(); i < n; i++) parts.push(make(false)); }
+  function frame(t) {
+    raf = 0; if (!running()) return;
+    var dt = Math.min(0.05, last ? (t - last) / 1000 : 0.016); last = t;
+    cx.clearRect(0, 0, w, h);
+    if (mode === 'snow') {
+      cx.fillStyle = '#fff';
+      for (var i = 0; i < parts.length; i++) {
+        var p = parts[i]; p.s += dt; p.y += p.v * dt; p.x += Math.sin(p.s) * 14 * dt;
+        if (p.y > h + 6) { parts[i] = make(true); continue; }
+        cx.globalAlpha = p.a; cx.beginPath(); cx.arc(p.x, p.y, p.r, 0, 6.283); cx.fill();
+      }
+    } else {
+      cx.strokeStyle = '#bcd3ea'; cx.lineWidth = 1.1; cx.lineCap = 'round';
+      for (var j = 0; j < parts.length; j++) {
+        var q = parts[j]; q.y += q.v * dt; q.x -= q.v * 0.18 * dt;
+        if (q.y > h + 20) { parts[j] = make(true); continue; }
+        cx.globalAlpha = q.a; cx.beginPath(); cx.moveTo(q.x, q.y); cx.lineTo(q.x + q.l * 0.18, q.y - q.l); cx.stroke();
+      }
+    }
+    cx.globalAlpha = 1; raf = requestAnimationFrame(frame);
+  }
+  function running() { return mode !== 'off' && !document.hidden && !$('library').hidden && $('player').hidden; }
+  function kick() { if (!running()) { cx.clearRect(0, 0, w, h); return; } if (!raf) { last = 0; raf = requestAnimationFrame(frame); } }
+  function apply() {
+    document.body.classList.toggle('wx-on', mode !== 'off');
+    var b = $('btnWx'); b.textContent = ''; b.appendChild(icon(ICONS[mode], 22)); b.classList.toggle('on', mode !== 'off');
+    b.setAttribute('aria-label', 'أجواء الشتاء: ' + LABEL[mode] + '، اضغط للتغيير');
+    if (mode === 'off') { cx.clearRect(0, 0, w, h); return; }
+    size(); fill();
+    if (reduce) { frame(performance.now()); cancelAnimationFrame(raf); raf = 0; return; }
+    kick();
+  }
+  $('btnWx').onclick = function () {
+    mode = mode === 'off' ? 'snow' : mode === 'snow' ? 'rain' : 'off'; lset('mk_wx', mode === 'off' ? null : mode); apply();
+    toast(mode === 'snow' ? 'أجواء الشتاء: ثلج ❄' : mode === 'rain' ? 'أجواء الشتاء: مطر' : 'أوقفت أجواء الشتاء');
+  };
+  window.addEventListener('resize', function () { if (mode !== 'off') { size(); fill(); } });
+  document.addEventListener('visibilitychange', kick);
+  new MutationObserver(kick).observe($('player'), { attributes: true, attributeFilter: ['hidden'] });
+  new MutationObserver(kick).observe($('library'), { attributes: true, attributeFilter: ['hidden'] });
+  apply();
+  return { apply: apply };
+})();
 
 /* ===== العرض ===== */
 var blobs = {}, filter = 'all', seasonSel = {};
