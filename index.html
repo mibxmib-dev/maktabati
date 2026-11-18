@@ -709,6 +709,7 @@ async function cacheImg(p) {
     var c = await caches.open('hm-dl'), key = dlKey('img-' + p.id);
     if (await c.match(key)) return p.id;
     var r = demo ? await fetch(p.thumb) : await fetch('https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(p.id) + '?alt=media&supportsAllDrives=true', { headers: { Authorization: 'Bearer ' + token } });
+    if (!r.ok && p.thumb) r = await fetch(p.thumb.replace(/=s\d+$/, '=s800'), { referrerPolicy: 'no-referrer' }).catch(function () { return { ok: false }; });
     if (!r.ok) return '';
     await c.put(key, new Response(await r.blob(), { headers: { 'Content-Type': r.headers.get('Content-Type') || 'image/jpeg' } }));
     return p.id;
@@ -792,7 +793,24 @@ function setDlButton(v) {
   if (isDl(v.id)) { b.appendChild(icon(CHECK, 22)); b.classList.add('on'); b.setAttribute('aria-label', 'محمّلة على الجهاز، اضغط للحذف'); b.onclick = function () { armDelete(b, 'هذه الحلقة', function () { dlDelete(v.id).then(function () { setDlButton(v); }); }); }; return; }
   b.classList.remove('on'); b.appendChild(icon(IC_DL, 22)); b.setAttribute('aria-label', 'تحميل للمشاهدة بدون إنترنت'); b.onclick = function () { download(v); };
 }
+/* التحميلات القديمة اللي ما معها غلاف أو شعار: نكمّلها لما يكون فيه نت */
+var backfilling = false, bfTried = {};
+async function dlBackfill() {
+  if (backfilling || offline || (!token && !demo)) return;
+  var a = dlRecs(), todo = Object.keys(a).filter(function (k) { var r = a[k], v = nodes[k]; return v && (!r.chId || !r.cover || !r.logo) && !bfTried[k]; });
+  if (!todo.length) return; backfilling = true; var changed = false;
+  for (var i = 0; i < todo.length; i++) {
+    var v = nodes[todo[i]], r = a[todo[i]], ch = channelOf(v), tt = titleOf(v);
+    if (ch && !r.chId) { r.chId = ch.id; r.chName = ch.name; changed = true; }
+    if (!r.logo && ch) { r.logo = await cacheImg(poster(ch)); changed = changed || !!r.logo; }
+    if (!r.cover && tt && tt.folder) { r.cover = await cacheImg(poster(tt)); changed = changed || !!r.cover; }
+    bfTried[todo[i]] = 1;
+  }
+  var now = dlRecs(); todo.forEach(function (k) { if (now[k]) now[k] = a[k]; }); jset('dl', now);
+  backfilling = false; if (changed) { Object.keys(imgTried).forEach(function (k) { delete imgTried[k]; }); render(); }
+}
 function renderDownloads(box) {
+  setTimeout(dlBackfill, 0);
   var a = dlRecs(), recs = Object.keys(a).map(function (k) { return a[k]; });
   var miss = recs.filter(function (r) { return (r.cover && !blobs[r.cover] && !imgTried[r.cover]) || (r.logo && !blobs[r.logo] && !imgTried[r.logo]); });
   if (miss.length && !renderDownloads._loading) { renderDownloads._loading = true; Promise.all(miss.map(function (r) { return Promise.all([loadImg(r.cover), loadImg(r.logo)]); })).then(function () { renderDownloads._loading = false; render(); }); }
