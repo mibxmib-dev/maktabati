@@ -137,7 +137,8 @@ body.playing #wx{display:none}
 .wxmenu button[aria-checked="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
 /* الإعدادات */
 .sethead{display:flex;align-items:center;gap:8px;margin:18px 0 6px}
-.sethead h2{margin:0;font-size:24px}
+.sethead h2{margin:0;font-size:24px;flex:1}
+.setdone{display:block;width:100%;max-width:420px;margin:18px auto 8px;min-height:50px;font-size:17px}
 .setsec{background:var(--raised);border:1px solid var(--line);border-radius:18px;padding:18px;margin-top:10px}
 .setsec h3{margin:0 0 14px;font-size:18px}
 .setlabel{color:var(--muted);font-size:14px;margin:14px 0 8px}
@@ -1442,8 +1443,9 @@ function openSettings() { if (view === 'settings') return; navPush(); view = 'se
 $('btnSettings').onclick = openSettings;
 function renderSettings(box) {
   var hd = el('div', 'sethead'), back = el('button', 'iconbtn'); back.type = 'button'; back.setAttribute('aria-label', 'رجوع'); back.appendChild(icon('M9 6l6 6-6 6', 22));
-  back.onclick = function () { if (history.state && history.state.v === 'settings') history.back(); else goHome(); };
-  hd.appendChild(back); hd.appendChild(el('h2', '', 'الإعدادات')); box.appendChild(hd);
+  back.onclick = closeSettings;
+  var x = el('button', 'iconbtn setclose'); x.type = 'button'; x.setAttribute('aria-label', 'إغلاق الإعدادات'); x.appendChild(icon('M6 6l12 12M18 6L6 18', 22)); x.onclick = closeSettings;
+  hd.appendChild(back); hd.appendChild(el('h2', '', 'الإعدادات')); hd.appendChild(x); box.appendChild(hd);
   var sec = el('section', 'setsec'); sec.appendChild(el('h3', '', 'المظهر'));
   /* الخلفية */
   sec.appendChild(el('div', 'setlabel', 'الخلفية'));
@@ -1466,9 +1468,11 @@ function renderSettings(box) {
     acs.appendChild(b);
   });
   sec.appendChild(acs);
-  sec.appendChild(el('p', 'setnote', 'الثلج والمطر تتحكم فيهم من زر الثلج في الصفحة الرئيسية.'));
+  sec.appendChild(el('p', 'setnote', 'التغييرات تنحفظ تلقائياً. الثلج والمطر تتحكم فيهم من زر الثلج في الصفحة الرئيسية.'));
   box.appendChild(sec);
+  var done = el('button', 'btn primary setdone', 'تم'); done.type = 'button'; done.onclick = closeSettings; box.appendChild(done);
 }
+function closeSettings() { if (history.state && history.state.v === 'settings') history.back(); else goHome(); }
 function goHome() { if (view !== 'home') navPush(); view = 'home'; query = ''; $('q').value = ''; render(); window.scrollTo(0, 0); }
 function openLibrary() {
   offline = false;
