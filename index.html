@@ -1524,10 +1524,8 @@ $('btnDone').onclick = function () { markDone(queue[qIndex]); if (qIndex < queue
 $('pFav').onclick = function () { toggleFav(titleOf(queue[qIndex])); play(qIndex); };
 
 /* ===== شاشة الافتتاح: تشغيل التلفاز، تشويش، نيون، إضاءة، ثم العنوان (بدون صوت) ===== */
-/* الواجهة الشتوية (اختيارية): نفس مؤثرات المقدمة بخلفية الكوخ */
+/* واجهة تسجيل الدخول: صورة الكوخ الشتوي بنفس مؤثرات المقدمة */
 (function () {
-  var w = false; try { w = localStorage.getItem('mk_wxbg') === 'winter'; } catch (e) {}
-  if (!w) return;
   $('srcScene').srcset = 'assets/scene-winter-p.webp'; $('srcTitle').srcset = 'assets/title-winter-p.webp'; $('signin').classList.add('wint');
 })();
 var Intro = (function () {
