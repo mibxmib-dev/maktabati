@@ -129,6 +129,12 @@ main{padding-bottom:48px;position:relative;z-index:2}
 body.wx-on #wx{display:block}
 body.playing #wx{display:none}
 .wxbtn{flex:none}
+.wxwrap{position:relative;flex:none}
+/* القائمة تفتح لداخل الشاشة (يمين الزر = يمين القائمة) عشان ما تنقص */
+.wxmenu{position:absolute;top:calc(100% + 6px);right:0;z-index:30;display:flex;flex-direction:column;gap:6px;width:150px;max-width:calc(100vw - 24px);padding:8px;background:var(--raised);border:1px solid var(--line);border-radius:14px;box-shadow:0 14px 34px rgba(0,0,0,.55)}
+.wxmenu[hidden]{display:none}
+.wxmenu button{min-height:44px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--text);font:inherit;font-size:15px;cursor:pointer;text-align:center}
+.wxmenu button[aria-checked="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
 /* الإعدادات */
 .sethead{display:flex;align-items:center;gap:8px;margin:18px 0 6px}
 .sethead h2{margin:0;font-size:24px}
@@ -386,7 +392,14 @@ button.pseries[hidden]{display:none}
     <span class="badge" id="demoBadge" hidden>عرض تجريبي</span>
     <span class="who" id="who" hidden></span>
     <input class="search" id="q" type="search" autocomplete="off" placeholder="ابحث عن فيلم أو مسلسل أو حلقة" aria-label="بحث في المكتبة">
-    <button class="iconbtn wxbtn" id="btnWx" type="button" aria-label="الثلج والمطر"></button>
+    <div class="wxwrap">
+      <button class="iconbtn wxbtn" id="btnWx" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="wxMenu" aria-label="الثلج والمطر"></button>
+      <div class="wxmenu" id="wxMenu" role="radiogroup" aria-label="الثلج والمطر" hidden>
+        <button type="button" role="radio" data-wx="snow">ثلج</button>
+        <button type="button" role="radio" data-wx="rain">مطر</button>
+        <button type="button" role="radio" data-wx="off">بدون</button>
+      </div>
+    </div>
     <button class="iconbtn" id="btnSettings" type="button" aria-label="الإعدادات"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg></button>
     <button class="btn small" id="btnRefresh" type="button">تحديث</button>
     <button class="btn small" id="btnSignout" type="button">تسجيل الخروج</button>
@@ -1023,10 +1036,16 @@ var WX = (function () {
     kick();
   }
   /* زر الرئيسية: بدون ← ثلج ← مطر */
-  $('btnWx').onclick = function () {
-    mode = mode === 'off' ? 'snow' : mode === 'snow' ? 'rain' : 'off'; lset('mk_wx', mode === 'off' ? null : mode); apply();
-    toast(mode === 'snow' ? 'ثلج ❄' : mode === 'rain' ? 'مطر' : 'أوقفت الثلج والمطر');
+  var menu = $('wxMenu'), btn = $('btnWx');
+  function marks() { menu.querySelectorAll('[data-wx]').forEach(function (b) { b.setAttribute('aria-checked', String(b.getAttribute('data-wx') === mode)); }); }
+  function openMenu(on) { menu.hidden = !on; btn.setAttribute('aria-expanded', String(on)); if (on) { menu.style.left = 'auto'; menu.style.right = '0'; var r = menu.getBoundingClientRect(); if (r.left < 8) { menu.style.right = 'auto'; menu.style.left = '0'; } r = menu.getBoundingClientRect(); if (r.right > innerWidth - 8) { menu.style.left = 'auto'; menu.style.right = '0'; } marks(); var c = menu.querySelector('[aria-checked="true"]'); if (c) c.focus(); } }
+  btn.onclick = function (e) { e.stopPropagation(); openMenu(menu.hidden); };
+  menu.onclick = function (e) {
+    e.stopPropagation(); var b = e.target.closest('[data-wx]'); if (!b) return;
+    mode = b.getAttribute('data-wx'); lset('mk_wx', mode === 'off' ? null : mode); apply(); openMenu(false);
   };
+  document.addEventListener('click', function () { if (!menu.hidden) openMenu(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !menu.hidden) { openMenu(false); btn.focus(); } });
   function sync() { Theme.apply(); }
   window.addEventListener('resize', function () { if (mode !== 'off') { size(); fill(); } });
   document.addEventListener('visibilitychange', kick);
