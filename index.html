@@ -129,13 +129,22 @@ main{padding-bottom:48px;position:relative;z-index:2}
 body.wx-on #wx{display:block}
 body.playing #wx{display:none}
 .wxbtn{flex:none}
-.wxwrap{position:relative;flex:none}
-.wxmenu{position:absolute;top:calc(100% + 8px);left:0;z-index:30;width:230px;background:var(--raised);border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 14px 34px rgba(0,0,0,.55)}
-.wxh{font-size:13px;color:var(--muted);margin:2px 4px 6px}
-.wxopts{display:flex;gap:6px;margin-bottom:10px}
-.wxopts:last-child{margin-bottom:0}
-.wxopts button{flex:1;min-height:40px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--text);font:inherit;font-size:14px;cursor:pointer}
-.wxopts button[aria-checked="true"]{background:var(--accent);color:#1a1210;border-color:var(--accent);font-weight:600}
+/* الإعدادات */
+.sethead{display:flex;align-items:center;gap:8px;margin:18px 0 6px}
+.sethead h2{margin:0;font-size:24px}
+.setsec{background:var(--raised);border:1px solid var(--line);border-radius:18px;padding:18px;margin-top:10px}
+.setsec h3{margin:0 0 14px;font-size:18px}
+.setlabel{color:var(--muted);font-size:14px;margin:14px 0 8px}
+.setbgs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.setbg{display:flex;flex-direction:column;gap:8px;padding:8px;border-radius:14px;border:2px solid var(--line);background:transparent;color:var(--text);font:inherit;cursor:pointer;text-align:center}
+.setbg[aria-checked="true"]{border-color:var(--accent)}
+.setthumb{display:block;aspect-ratio:3/4;border-radius:10px;background:var(--ground) center 30%/cover no-repeat;border:1px solid var(--line)}
+.setname{font-size:14px;font-weight:600}
+.setaccents{display:flex;flex-wrap:wrap;gap:8px}
+.setacc{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:22px;border:1px solid var(--line);background:transparent;color:var(--text);font:inherit;font-size:14px;cursor:pointer}
+.setacc[aria-checked="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);font-weight:600}
+.setdot{width:18px;height:18px;border-radius:50%;flex:none}
+.setnote{color:var(--muted);font-size:13px;margin:16px 0 0}
 /* الخلفية الشتوية خلف المكتبة، معتّمة عشان المحتوى يبقى واضح */
 #wxbg{position:fixed;inset:0;z-index:0;display:none;background:linear-gradient(rgba(17,12,11,.62),rgba(17,12,11,.8) 55%,rgba(17,12,11,.9)),url('assets/winter-bg.webp') center 30%/cover no-repeat}
 body.wxbg-on #wxbg{display:block}
@@ -377,19 +386,8 @@ button.pseries[hidden]{display:none}
     <span class="badge" id="demoBadge" hidden>عرض تجريبي</span>
     <span class="who" id="who" hidden></span>
     <input class="search" id="q" type="search" autocomplete="off" placeholder="ابحث عن فيلم أو مسلسل أو حلقة" aria-label="بحث في المكتبة">
-    <div class="wxwrap">
-      <button class="iconbtn wxbtn" id="btnWx" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="wxMenu" aria-label="أجواء الشتاء"></button>
-      <div class="wxmenu" id="wxMenu" hidden>
-        <div class="wxh">المؤثر</div>
-        <div class="wxopts" role="radiogroup" aria-label="المؤثر">
-          <button type="button" role="radio" data-wx="off">بدون</button><button type="button" role="radio" data-wx="snow">ثلج</button><button type="button" role="radio" data-wx="rain">مطر</button>
-        </div>
-        <div class="wxh">الخلفية</div>
-        <div class="wxopts" role="radiogroup" aria-label="الخلفية">
-          <button type="button" role="radio" data-bg="off">العادية</button><button type="button" role="radio" data-bg="winter">الشتوية</button>
-        </div>
-      </div>
-    </div>
+    <button class="iconbtn wxbtn" id="btnWx" type="button" aria-label="الثلج والمطر"></button>
+    <button class="iconbtn" id="btnSettings" type="button" aria-label="الإعدادات"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg></button>
     <button class="btn small" id="btnRefresh" type="button">تحديث</button>
     <button class="btn small" id="btnSignout" type="button">تسجيل الخروج</button>
   </div></header>
@@ -727,7 +725,8 @@ window.addEventListener('popstate', function (e) {
   if (s.p) { history.back(); return; }
   query = ''; $('q').value = '';
   dlOnly = s.d || '';
-  if (s.v === 'folder' && nodes[s.cur]) { view = 'folder'; cur = s.cur; } else { view = 'home'; if (s.f && (s.f !== 'dl' || !IS_TV)) filter = offline ? 'dl' : s.f; }
+  if (s.v === 'settings') { view = 'settings'; }
+  else if (s.v === 'folder' && nodes[s.cur]) { view = 'folder'; cur = s.cur; } else { view = 'home'; if (s.f && (s.f !== 'dl' || !IS_TV)) filter = offline ? 'dl' : s.f; }
   render(); var y = s.y || 0; requestAnimationFrame(function () { window.scrollTo(0, y); });
   if (pendingOpen) { var po = pendingOpen; pendingOpen = null; if (!(view === 'folder' && cur === po.id)) open(po); }
 });
@@ -955,6 +954,26 @@ function offlineButton() { var n = Object.keys(jget('dl', {})).length; $('btnOff
 $('btnOffline').onclick = function () { Intro.stop && Intro.stop(); openOffline(); };
 
 /* ===== أجواء الشتاء ===== */
+/* ===== الثيم (من الإعدادات): الخلفية واللون الرئيسي ===== */
+var ACCENTS = [
+  { id: 'gold', name: 'ذهبي', c: '#F4C27A', on: '#2A1606' },
+  { id: 'ice', name: 'ثلجي', c: '#9FD3F2', on: '#0B2233' },
+  { id: 'ember', name: 'جمري', c: '#F59A7A', on: '#2E0E04' },
+  { id: 'pine', name: 'صنوبري', c: '#9FDDB0', on: '#0D2615' },
+  { id: 'rose', name: 'وردي', c: '#F2A7C8', on: '#33101F' }
+];
+var Theme = {
+  bg: function () { return lget('mk_wxbg') || 'off'; },
+  accent: function () { return lget('mk_accent') || 'gold'; },
+  apply: function () {
+    document.body.classList.toggle('wxbg-on', Theme.bg() === 'winter' && !$('library').hidden);
+    var a = ACCENTS.filter(function (x) { return x.id === Theme.accent(); })[0] || ACCENTS[0], r = document.documentElement.style;
+    if (a.id === 'gold') { r.removeProperty('--accent'); r.removeProperty('--on-accent'); } else { r.setProperty('--accent', a.c); r.setProperty('--on-accent', a.on); }
+  },
+  set: function (k, v) { lset(k, v); Theme.apply(); render(); }
+};
+new MutationObserver(function () { Theme.apply(); }).observe($('library'), { attributes: true, attributeFilter: ['hidden'] });
+Theme.apply();
 var WX = (function () {
   var cv = $('wx'), cx = cv.getContext('2d'), mode = lget('mk_wx') || 'off', parts = [], raf = 0, w = 0, h = 0, dpr = 1, last = 0;
   var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -996,36 +1015,24 @@ var WX = (function () {
   function kick() { if (!running()) { cx.clearRect(0, 0, w, h); return; } if (!raf) { last = 0; raf = requestAnimationFrame(frame); } }
   function apply() {
     document.body.classList.toggle('wx-on', mode !== 'off');
-    var b = $('btnWx'); b.textContent = ''; b.appendChild(icon(ICONS[mode === 'off' ? 'snow' : mode], 22));
-    b.setAttribute('aria-label', 'أجواء الشتاء: ' + LABEL[mode]); if (typeof sync === 'function') sync();
+    var b = $('btnWx'); b.textContent = ''; b.appendChild(icon(ICONS[mode === 'off' ? 'snow' : mode], 22)); b.classList.toggle('on', mode !== 'off');
+    b.setAttribute('aria-label', 'الثلج والمطر: ' + LABEL[mode] + '، اضغط للتغيير');
     if (mode === 'off') { cx.clearRect(0, 0, w, h); return; }
     size(); fill();
     if (reduce) { frame(performance.now()); cancelAnimationFrame(raf); raf = 0; return; }
     kick();
   }
-  var bg = lget('mk_wxbg') || 'off', menu = $('wxMenu'), btn = $('btnWx');
-  function sync() {
-    document.body.classList.toggle('wxbg-on', bg === 'winter' && !$('library').hidden);
-    menu.querySelectorAll('[data-wx]').forEach(function (b) { b.setAttribute('aria-checked', String(b.getAttribute('data-wx') === mode)); });
-    menu.querySelectorAll('[data-bg]').forEach(function (b) { b.setAttribute('aria-checked', String(b.getAttribute('data-bg') === bg)); });
-    btn.classList.toggle('on', mode !== 'off' || bg !== 'off');
-  }
-  function openMenu(on) { menu.hidden = !on; btn.setAttribute('aria-expanded', String(on)); }
-  btn.onclick = function (e) { e.stopPropagation(); openMenu(menu.hidden); sync(); };
-  menu.onclick = function (e) {
-    e.stopPropagation(); var b = e.target.closest('button'); if (!b) return;
-    if (b.hasAttribute('data-wx')) { mode = b.getAttribute('data-wx'); lset('mk_wx', mode === 'off' ? null : mode); apply(); }
-    if (b.hasAttribute('data-bg')) { bg = b.getAttribute('data-bg'); lset('mk_wxbg', bg === 'off' ? null : bg); }
-    sync();
+  /* زر الرئيسية: بدون ← ثلج ← مطر */
+  $('btnWx').onclick = function () {
+    mode = mode === 'off' ? 'snow' : mode === 'snow' ? 'rain' : 'off'; lset('mk_wx', mode === 'off' ? null : mode); apply();
+    toast(mode === 'snow' ? 'ثلج ❄' : mode === 'rain' ? 'مطر' : 'أوقفت الثلج والمطر');
   };
-  document.addEventListener('click', function () { if (!menu.hidden) openMenu(false); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !menu.hidden) { openMenu(false); btn.focus(); } });
-  new MutationObserver(sync).observe($('library'), { attributes: true, attributeFilter: ['hidden'] });
+  function sync() { Theme.apply(); }
   window.addEventListener('resize', function () { if (mode !== 'off') { size(); fill(); } });
   document.addEventListener('visibilitychange', kick);
   new MutationObserver(kick).observe($('player'), { attributes: true, attributeFilter: ['hidden'] });
   new MutationObserver(kick).observe($('library'), { attributes: true, attributeFilter: ['hidden'] });
-  apply(); sync();
+  apply();
   return { apply: apply };
 })();
 
@@ -1400,6 +1407,7 @@ function render() {
   var st = $('status'); st.hidden = !crawling; if (crawling) st.textContent = 'جارٍ فهرسة المكتبة… (' + (Object.keys(nodes).length - 1) + ' عنصراً حتى الآن)';
   var c = $('crumbs'); c.textContent = ''; c.hidden = !(view === 'folder' && !query);
   if (query) renderSearch(box);
+  else if (view === 'settings') renderSettings(box);
   else if (view === 'folder') {
     var hb = el('button', '', 'الرئيسية'); hb.type = 'button'; hb.onclick = goHome; c.appendChild(hb);
     trail(cur).forEach(function (p, i, a) {
@@ -1410,6 +1418,37 @@ function render() {
     renderFolder(box);
   } else renderHome(box);
   box.querySelectorAll('.row').forEach(function (r, i) { if (keep[i]) r.scrollLeft = keep[i]; });
+}
+function openSettings() { if (view === 'settings') return; navPush(); view = 'settings'; query = ''; $('q').value = ''; render(); window.scrollTo(0, 0); }
+$('btnSettings').onclick = openSettings;
+function renderSettings(box) {
+  var hd = el('div', 'sethead'), back = el('button', 'iconbtn'); back.type = 'button'; back.setAttribute('aria-label', 'رجوع'); back.appendChild(icon('M9 6l6 6-6 6', 22));
+  back.onclick = function () { if (history.state && history.state.v === 'settings') history.back(); else goHome(); };
+  hd.appendChild(back); hd.appendChild(el('h2', '', 'الإعدادات')); box.appendChild(hd);
+  var sec = el('section', 'setsec'); sec.appendChild(el('h3', '', 'المظهر'));
+  /* الخلفية */
+  sec.appendChild(el('div', 'setlabel', 'الخلفية'));
+  var bgs = el('div', 'setbgs'); bgs.setAttribute('role', 'radiogroup'); bgs.setAttribute('aria-label', 'الخلفية');
+  [['off', 'العادية', ''], ['winter', 'الكوخ الشتوي', 'assets/winter-bg.webp']].forEach(function (o) {
+    var b = el('button', 'setbg'); b.type = 'button'; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', String(Theme.bg() === o[0]));
+    var th = el('span', 'setthumb'); if (o[2]) th.style.backgroundImage = 'url(' + o[2] + ')'; b.appendChild(th);
+    b.appendChild(el('span', 'setname', o[1]));
+    b.onclick = function () { Theme.set('mk_wxbg', o[0] === 'off' ? null : o[0]); };
+    bgs.appendChild(b);
+  });
+  sec.appendChild(bgs);
+  /* اللون الرئيسي */
+  sec.appendChild(el('div', 'setlabel', 'اللون الرئيسي'));
+  var acs = el('div', 'setaccents'); acs.setAttribute('role', 'radiogroup'); acs.setAttribute('aria-label', 'اللون الرئيسي');
+  ACCENTS.forEach(function (a) {
+    var b = el('button', 'setacc'); b.type = 'button'; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', String(Theme.accent() === a.id));
+    var dot = el('span', 'setdot'); dot.style.background = a.c; b.appendChild(dot); b.appendChild(el('span', '', a.name));
+    b.onclick = function () { Theme.set('mk_accent', a.id === 'gold' ? null : a.id); };
+    acs.appendChild(b);
+  });
+  sec.appendChild(acs);
+  sec.appendChild(el('p', 'setnote', 'الثلج والمطر تتحكم فيهم من زر الثلج في الصفحة الرئيسية.'));
+  box.appendChild(sec);
 }
 function goHome() { if (view !== 'home') navPush(); view = 'home'; query = ''; $('q').value = ''; render(); window.scrollTo(0, 0); }
 function openLibrary() {
