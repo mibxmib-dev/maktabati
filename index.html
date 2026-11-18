@@ -206,6 +206,15 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 .epdl{flex:none;width:44px;height:44px}
 .iconbtn.arm,.btn.arm{color:#ff8a7a}
 .dlall{flex-wrap:wrap;gap:8px}
+.dlch{display:flex;align-items:center;gap:12px;margin:22px 0 4px}
+.dlch.link{cursor:pointer}
+.dlch h3{margin:0;font-size:17px}
+.dllogo{width:64px;height:40px;border-radius:8px;overflow:hidden;background:var(--raised);display:flex;align-items:center;justify-content:center;flex:none}
+.dllogo img{width:100%;height:100%;object-fit:cover}
+.dllogo .chaninit{font-size:20px}
+.row .tile{position:relative}
+.dlbadge{position:absolute;top:6px;left:6px;z-index:2;display:inline-flex;align-items:center;gap:3px;background:rgba(0,0,0,.72);color:#fff;font-size:12px;font-weight:700;padding:3px 7px;border-radius:10px}
+.tile .chaninit{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:40px}
 .dlhead{display:flex;align-items:center;gap:12px;margin:18px 0 8px}
 .dlhead img{width:48px;height:64px;object-fit:cover;border-radius:8px;flex:none}
 .dlhead.link{cursor:pointer;border-radius:12px;padding:4px}
@@ -646,7 +655,7 @@ function continueList() {
     .filter(function (t) { if (!t) return false; var r = resumePoint(t); return r.ep && !(done()[r.ep.id] && !r.next); }).slice(0, 12);
 }
 /* زر الرجوع في الجوال: يرجعك للصفحة اللي قبل بدل ما يقفل التطبيق */
-function navState() { return { v: view, cur: cur, f: filter, y: window.scrollY }; }
+function navState() { return { v: view, cur: cur, f: filter, y: window.scrollY, d: dlOnly }; }
 function navPush(extra) {
   try { history.replaceState(Object.assign(navState(), history.state && history.state.p ? { p: 1 } : {}), ''); history.pushState(Object.assign(navState(), extra || {}), ''); } catch (e) {}
 }
@@ -655,11 +664,12 @@ window.addEventListener('popstate', function (e) {
   if (!$('player').hidden) { closePlayer(); if (s.p) return; }
   if (s.p) { history.back(); return; }
   query = ''; $('q').value = '';
+  dlOnly = s.d || '';
   if (s.v === 'folder' && nodes[s.cur]) { view = 'folder'; cur = s.cur; } else { view = 'home'; if (s.f && (s.f !== 'dl' || !IS_TV)) filter = offline ? 'dl' : s.f; }
   render(); var y = s.y || 0; requestAnimationFrame(function () { window.scrollTo(0, y); });
 });
 function open(n) {
-  if (n.folder) { navPush(); view = 'folder'; cur = n.id; query = ''; $('q').value = ''; render(); window.scrollTo(0, 0); var s = navState(); try { history.replaceState(s, ''); } catch (e) {} return; }
+  if (n.folder) { navPush(); dlOnly = ''; view = 'folder'; cur = n.id; query = ''; $('q').value = ''; render(); window.scrollTo(0, 0); var s = navState(); try { history.replaceState(s, ''); } catch (e) {} return; }
   playEpisode(n);
 }
 function playEpisode(v) {
@@ -756,7 +766,8 @@ function armDelete(btn, label, fn) {
 async function dlDeleteMany(ids) {
   var c = await caches.open('hm-dl').catch(function () { return null; }), a = dlRecs();
   for (var i = 0; i < ids.length; i++) { if (c) await c.delete(dlKey(ids[i])).catch(function () {}); delete a[ids[i]]; }
-  jset('dl', a); await dlPruneImgs(); toast('حُذفت ' + ids.length + ' من التحميلات.'); render();
+  jset('dl', a); await dlPruneImgs(); toast('حُذفت ' + ids.length + ' من التحميلات.');
+  if (offline && Object.keys(a).length) { var keepV = view, keepC = cur; openOffline(); if (keepV === 'folder' && nodes[keepC] && nodes[keepC].kids.length) { view = 'folder'; cur = keepC; } } render();
   if (offline && !Object.keys(a).length) $('btnSignout').onclick();
 }
 /* نحذف الصور اللي ما عاد لها حلقات محمّلة */
@@ -770,7 +781,8 @@ async function dlPruneImgs() {
 async function dlDelete(id) {
   if (DLC[id]) { DLC[id].abort(); return; }
   try { (await caches.open('hm-dl')).delete(dlKey(id)); } catch (e) {}
-  var a = dlRecs(); delete a[id]; jset('dl', a); dlPruneImgs(); toast('حُذف التحميل من الجهاز.'); render();
+  var a = dlRecs(); delete a[id]; jset('dl', a); dlPruneImgs(); toast('حُذف التحميل من الجهاز.');
+  if (offline && Object.keys(a).length) { var keepV = view, keepC = cur; openOffline(); if (keepV === 'folder' && nodes[keepC] && nodes[keepC].kids.length) { view = 'folder'; cur = keepC; } } render();
   if (offline && !Object.keys(a).length) $('btnSignout').onclick();
 }
 function setDlButton(v) {
@@ -802,32 +814,40 @@ function renderDownloads(box) {
     var ab = el('div', 'dlall'); ab.appendChild(all); box.appendChild(ab);
   }
   if (!recs.length && !Object.keys(DLA).length) { box.appendChild(el('div', 'state', 'ما حمّلت شيئاً بعد. افتح أي حلقة واضغط زر التحميل أعلى المشغّل، فتقدر تشاهدها بعدين بدون إنترنت.')); return; }
-  var byT = {}, order = [];
-  recs.sort(function (x, y) { return x.tname.localeCompare(y.tname, 'ar') || x.name.localeCompare(y.name, 'ar', { numeric: true }); })
-    .forEach(function (r) { if (!byT[r.tid]) { byT[r.tid] = []; order.push(r.tid); } byT[r.tid].push(r); });
-  order.forEach(function (tid) {
-    var r0 = byT[tid][0], hd = el('div', 'dlhead');
-    if (r0.cover && blobs[r0.cover]) { var cv = document.createElement('img'); cv.alt = ''; cv.src = blobs[r0.cover]; hd.appendChild(cv); }
-    var ht = el('div', ''); ht.appendChild(el('div', 'dlt', r0.tname)); if (r0.chName) ht.appendChild(el('div', 'dlc', r0.chName)); hd.appendChild(ht);
-    var tn = nodes[(offline ? 't-' : '') + tid];
-    if (tn && tn.folder) { hd.classList.add('link'); hd.setAttribute('role', 'button'); hd.tabIndex = 0; hd.setAttribute('aria-label', 'افتح ' + r0.tname); hd.onclick = function () { open(tn); }; hd.onkeydown = function (ev) { if (ev.key === 'Enter') open(tn); }; hd.appendChild(el('span', 'dlgo', '‹')); }
-    box.appendChild(hd);
-    var l = el('div', 'list');
-    byT[tid].forEach(function (rec) {
-      var row = el('div', 'dlrow'), v = nodes[rec.id] || { id: rec.id, name: rec.name, folder: false, dur: rec.dur, label: rec.label, labelLong: rec.labelLong };
-      var b = el('button', 'video'); b.type = 'button';
-      var th = el('span', 'vthumb'), pic = !offline && nodes[rec.id] ? poster(nodes[rec.id]) : null; if (pic) th.appendChild(img(pic)); else if (rec.cover && blobs[rec.cover]) { var ci = document.createElement('img'); ci.alt = ''; ci.src = blobs[rec.cover]; th.appendChild(ci); }
-      var pl = el('span', 'play mini'); pl.appendChild(icon('M8 5v14l11-7z', 14, true)); th.appendChild(pl);
-      var pg = progressBar(v); if (pg) th.appendChild(pg);
-      var tx = el('span', 'txt'); tx.appendChild(el('span', 'name', rec.labelLong || rec.label));
-      tx.appendChild(el('span', 'where', mb(rec.size) + (rec.dur ? ' · ' + fmt(rec.dur) : '')));
-      b.appendChild(th); b.appendChild(tx);
-      b.onclick = function () { var n = nodes[rec.id]; if (n) playEpisode(n); else toast('افتح التطبيق مع الإنترنت مرة لتحديث هذه الحلقة.'); };
-      var del = el('button', 'iconbtn'); del.type = 'button'; del.setAttribute('aria-label', 'حذف التحميل'); del.appendChild(icon(IC_TRASH, 20));
-      del.onclick = function () { dlDelete(rec.id); };
-      row.appendChild(b); row.appendChild(del); l.appendChild(row);
+  /* القنوات بشعاراتها، وتحت كل قناة أغلفة الكرتون المحمّل. تضغط الغلاف فيفتح لك المواسم والحلقات المحمّلة */
+  var byC = {}, cOrder = [];
+  recs.sort(function (x, y) { return (x.chName || '').localeCompare(y.chName || '', 'ar') || x.tname.localeCompare(y.tname, 'ar'); })
+    .forEach(function (r) {
+      var ck = r.chId || '-'; if (!byC[ck]) { byC[ck] = { name: r.chName, logo: r.logo, t: {}, order: [] }; cOrder.push(ck); }
+      var c = byC[ck]; if (!c.logo && r.logo) c.logo = r.logo;
+      if (!c.t[r.tid]) { c.t[r.tid] = []; c.order.push(r.tid); } c.t[r.tid].push(r);
     });
-    box.appendChild(l);
+  function blobImg(id, cls) { if (!id || !blobs[id]) return null; var im = document.createElement('img'); im.alt = ''; im.src = blobs[id]; if (cls) im.className = cls; return im; }
+  cOrder.forEach(function (ck) {
+    var c = byC[ck], hd = el('div', 'dlch');
+    var lg = el('span', 'dllogo'), li = blobImg(c.logo); if (li) { var z = LOGO_ZOOM[(c.name || '').trim()]; if (z) li.style.transform = 'scale(' + z + ')'; lg.appendChild(li); } else lg.appendChild(el('span', 'chaninit', (c.name || 'ت').trim().charAt(0)));
+    hd.appendChild(lg); hd.appendChild(el('h3', '', c.name || 'التحميلات'));
+    var cn = nodes[offline ? 'c-' + ck : ck];
+    if (cn && cn.folder) { hd.classList.add('link'); hd.setAttribute('role', 'button'); hd.tabIndex = 0; hd.onclick = function () { open(cn); }; }
+    box.appendChild(hd);
+    var r = el('div', 'row');
+    c.order.forEach(function (tid) {
+      var list = c.t[tid], r0 = list[0], tn = nodes[(offline ? 't-' : '') + tid];
+      var size = list.reduce(function (s, x) { return s + (x.size || 0); }, 0);
+      var b = el('button', 'card'); b.type = 'button';
+      var tile = el('span', 'tile'), ci = blobImg(r0.cover) || (tn && !offline && poster(tn) ? img(poster(tn)) : null);
+      if (ci) tile.appendChild(ci); else tile.appendChild(el('span', 'chaninit', r0.tname.trim().charAt(0)));
+      var badge = el('span', 'dlbadge'); badge.appendChild(icon(IC_DL, 12)); badge.appendChild(document.createTextNode(String(list.length))); tile.appendChild(badge);
+      b.appendChild(tile); b.appendChild(el('span', 'name', r0.tname));
+      b.appendChild(el('span', 'meta', list.length + (list.length === 1 ? ' حلقة' : list.length === 2 ? ' حلقتين' : list.length <= 10 ? ' حلقات' : ' حلقة') + ' · ' + mb(size)));
+      b.setAttribute('aria-label', r0.tname + '، ' + list.length + ' محمّلة');
+      b.onclick = function () {
+        if (tn && tn.folder) { open(tn); if (!offline) { dlOnly = tn.id; try { history.replaceState(navState(), ''); } catch (e) {} render(); } return; }
+        var n = nodes[r0.id]; if (n) playEpisode(n); else toast('افتح التطبيق مع الإنترنت مرة لتحديث هذا الكرتون.');
+      };
+      r.appendChild(b);
+    });
+    box.appendChild(r);
   });
 }
 /* فتح التحميلات بدون إنترنت أو بدون تسجيل دخول */
@@ -925,7 +945,7 @@ function dlBtn(v) {
   return x;
 }
 function epRow(v) {
-  if (!canDl()) return videoRow(v, false);
+  if (IS_TV || (!canDl() && !isDl(v.id))) return videoRow(v, false);
   var r = el('div', 'dlrow'); r.appendChild(videoRow(v, false)); r.appendChild(dlBtn(v)); return r;
 }
 /* تحميل كل حلقات الموسم واحدة بعد الثانية */
@@ -942,8 +962,13 @@ function dlPump() {
 }
 function dlAllBar(eps, name) {
   var bar = el('div', 'dlall');
-  if (!canDl() || !eps.length) return bar;
+  if (IS_TV || !eps.length) return bar;
   var have = eps.filter(function (v) { return isDl(v.id); });
+  if (!canDl()) {
+    if (have.length) { var od = el('button', 'btn'); od.type = 'button'; od.appendChild(icon(IC_TRASH, 16)); od.appendChild(document.createTextNode('حذف المحمّل (' + have.length + ')'));
+      od.onclick = function () { armDelete(od, have.length + ' حلقة', function () { dlDeleteMany(have.map(function (v) { return v.id; })); }); }; bar.appendChild(od); }
+    return bar;
+  }
   var left = eps.filter(function (v) { return !isDl(v.id); }).length;
   var b = el('button', 'btn ghost', left ? 'تحميل ' + (name ? name : 'الكل') + ' (' + left + ')' : 'الكل محمّل'); b.type = 'button';
   b.insertBefore(icon(left ? IC_DL : CHECK, 16), b.firstChild); b.disabled = !left;
@@ -1082,8 +1107,12 @@ function renderSearch(box) {
   if (hits.length > 80) box.appendChild(el('div', 'state', 'تظهر أول 80 نتيجة. أضف كلمة لتضييق البحث.'));
 }
 /* صفحة المسلسل أو الفيلم */
+var dlOnly = '';
 function renderTitle(box, t) {
-  var gs = groups(t), eps = allEpisodes(t), kind = titleKind(t), r = resumePoint(t), co = companyOf(t), p = poster(t);
+  var allG = groups(t), haveN = allG.reduce(function (n, g) { return n + g.eps.filter(function (v) { return isDl(v.id); }).length; }, 0);
+  if (dlOnly === t.id && !haveN) dlOnly = '';
+  var gs = dlOnly === t.id ? allG.map(function (g) { return { id: g.id, name: g.name, eps: g.eps.filter(function (v) { return isDl(v.id); }) }; }).filter(function (g) { return g.eps.length; }) : allG;
+  var _gs = gs, eps = allEpisodes(t), kind = titleKind(t), r = resumePoint(t), co = companyOf(t), p = poster(t);
   var hero = el('section', 'thero');
   if (p) { var bg = img(p, 'tbg'); bg.setAttribute('aria-hidden', 'true'); hero.appendChild(bg); }
   var inner = el('div', 'tin'), pt = el('div', 'tposter'); if (p) pt.appendChild(img(p)); inner.appendChild(pt);
@@ -1107,6 +1136,15 @@ function renderTitle(box, t) {
   info.appendChild(acts); inner.appendChild(info); hero.appendChild(inner); box.appendChild(hero);
   if (!eps.length) { box.appendChild(el('div', 'state', 'لا توجد ملفات فيديو هنا بعد.')); return; }
   if (kind === 'movie' && eps.length === 1) return;
+  if (haveN && !offline && !IS_TV) {
+    var tg = el('div', 'fchips'); tg.setAttribute('role', 'group'); tg.setAttribute('aria-label', 'عرض الحلقات');
+    [['', 'كل الحلقات'], [t.id, 'المحمّلة (' + haveN + ')']].forEach(function (o) {
+      var b = el('button', 'fchip', o[1]); b.type = 'button'; b.setAttribute('aria-pressed', String(dlOnly === o[0] || (!o[0] && dlOnly !== t.id)));
+      if (o[0]) b.insertBefore(icon(IC_DL, 14), b.firstChild);
+      b.onclick = function () { dlOnly = o[0]; render(); }; tg.appendChild(b);
+    });
+    box.appendChild(tg);
+  }
   var sel = seasonSel[t.id], g = gs.filter(function (x) { return x.id === sel; })[0];
   if (!g) g = gs.filter(function (x) { return r.ep && x.eps.indexOf(r.ep) >= 0; })[0] || gs[0];
   if (gs.length > 1) {
