@@ -473,7 +473,7 @@ function crawl() {
     while (active < 4 && q.length) (function (id) {
       active++;
       loadKids(id).then(function (k) { k.forEach(function (c) { if (nodes[c].folder) q.push(c); }); })
-        .catch(function (e) { if (id === rootKey) fatal = e.message; else nodes[id].kids = []; })
+        .catch(function (e) { if (id === rootKey) { if (noNet(e) && hasDl()) { openOffline(); return; } fatal = noNet(e) ? 'ما فيه اتصال بالإنترنت. اتصل ثم اضغط «تحديث».' : e.message; } else nodes[id].kids = []; })
         .then(function () { active--; schedule(); next(); });
     })(q.shift());
     if (!active && !q.length) { crawling = false; schedule(); }
@@ -766,6 +766,8 @@ function openOffline() {
   });
   view = 'home'; query = ''; $('q').value = ''; filter = 'dl'; render();
 }
+function hasDl() { return Object.keys(jget('dl', {})).length > 0; }
+function noNet(e) { return !navigator.onLine || (e && e.name === 'TypeError'); }
 function offlineButton() { var n = Object.keys(jget('dl', {})).length; $('btnOffline').hidden = !n; if (n) $('btnOffline').textContent = 'التحميلات (' + n + ') — تعمل بدون إنترنت'; }
 $('btnOffline').onclick = function () { Intro.stop && Intro.stop(); openOffline(); };
 
@@ -1282,6 +1284,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
+window.addEventListener('online', function () { if (offline) toast('رجع الإنترنت. اضغط «تحديث» لفتح المكتبة كاملة.'); });
 function tokenFresh() { return token && Number(lget('mk_exp') || 0) > Date.now(); }
 document.addEventListener('visibilitychange', function () {
   if (document.visibilityState !== 'visible' || demo || offline || !token || tokenFresh()) return;
@@ -1308,6 +1311,7 @@ function useToken(t, exp) { token = t; demo = false; lset('mk_token', t); lset('
     useToken(p.access_token, Date.now() + (Number(p.expires_in) || 3600) * 1000 - 60000); return;
   }
   var t = lget('mk_token'), e = Number(lget('mk_exp') || 0);
+  if (!navigator.onLine && hasDl()) { Intro.stop && Intro.stop(); openOffline(); return; }
   if (t && e > Date.now()) { token = t; demo = false; openLibrary(); return; }
   renew();
 })();
@@ -1317,7 +1321,15 @@ $('btnSave').onclick = function () {
   store('mk_client', clientId); store('mk_folder', $('inFolder').value.trim());
   showMsg(clientId && rootId ? 'تم حفظ الإعداد على هذا المتصفح. اضغط تسجيل الدخول.' : 'أدخل معرّف العميل ورابط المجلد.');
 };
-$('btnRefresh').onclick = function () { if (offline) { if (navigator.onLine) $('btnSignout').onclick(); else toast('ما فيه إنترنت. تقدر تشاهد التحميلات فقط.'); return; } openLibrary(); };
+$('btnRefresh').onclick = function () {
+  if (offline) {
+    if (!navigator.onLine) { toast('ما فيه إنترنت. تقدر تشاهد التحميلات فقط.'); return; }
+    offline = false; filter = 'all'; var t = lget('mk_token');
+    if (t && Number(lget('mk_exp') || 0) > Date.now()) { token = t; openLibrary(); } else if (!renew()) { $('library').hidden = true; $('signin').hidden = false; offlineButton(); }
+    return;
+  }
+  openLibrary();
+};
 offlineButton();
 if (!navigator.onLine && Object.keys(jget('dl', {})).length && $('signin').hidden === false) setTimeout(function () { showMsg('ما فيه اتصال بالإنترنت. تقدر تشاهد الحلقات المحمّلة من زر «التحميلات».'); }, 300);
 $('btnSignout').onclick = function () {
