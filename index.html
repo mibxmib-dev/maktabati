@@ -156,6 +156,12 @@ h3{font-size:15px;margin:18px 0 10px;color:var(--muted);font-weight:500}
 .pbar .ptitle{flex:1;min-width:0;display:flex;flex-direction:column;font-weight:700;line-height:1.35}
 .pbar .ptitle span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pseries{font-size:12px;color:var(--accent);font-weight:500}
+/* زر العودة لواجهة المسلسل */
+.pback{display:flex;padding:8px 12px;background:var(--ground);border-bottom:1px solid var(--line)}
+.pback:has(#pBack[hidden]){display:none}
+#pBack{width:100%;justify-content:center;gap:8px;font-weight:600;color:var(--accent)}
+#pBack[hidden]{display:none}
+@media (max-height:520px){.pback{display:none}}
 button.pseries{all:unset;cursor:pointer;font-size:13px;color:var(--accent);font-weight:600;display:inline-flex;align-items:center;gap:4px;max-width:100%;min-height:24px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:underline;text-underline-offset:3px}
 button.pseries:focus-visible{outline:2px solid var(--accent);border-radius:4px}
 button.pseries[hidden]{display:none}
@@ -350,11 +356,12 @@ button.pseries[hidden]{display:none}
 <div id="player" hidden>
   <div class="pbar">
     <button class="iconbtn" id="btnClose" type="button" aria-label="رجوع"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
-    <div class="ptitle"><button class="pseries" id="pseries" type="button"></button><span id="ptitle"></span></div>
+    <div class="ptitle"><span class="pseries" id="pseries"></span><span id="ptitle"></span></div>
     <button class="iconbtn" id="pFav" type="button" aria-pressed="false" aria-label="أضف للمفضلة"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.6-9.2C1 8 3 4.5 6.6 4.5c2.1 0 3.6 1.1 5.4 3.1 1.8-2 3.3-3.1 5.4-3.1C21 4.5 23 8 21.6 11.3 19.5 15.9 12 20.5 12 20.5z"></path></svg></button>
     <button class="iconbtn" id="pDl" type="button" aria-label="تحميل للمشاهدة بدون إنترنت"></button>
     <a id="openDrive" href="#" target="_blank" rel="noopener">فتح في Drive</a>
   </div>
+  <div class="pback"><button class="btn small" id="pBack" type="button" hidden></button></div>
   <div class="stage" id="stage"></div>
   <div class="pctl">
     <button class="btn small" id="btnPrev" type="button">السابق</button>
@@ -1357,9 +1364,13 @@ function play(i) {
   qIndex = i; var v = queue[i], st = $('stage'), t = titleOf(v), d = done();
   st.textContent = '';
   var home_ = t !== v ? t : (v.parent && nodes[v.parent] && v.parent !== rootKey ? nodes[v.parent] : null);
-  $('pseries').textContent = home_ ? home_.name : ''; $('pseries').hidden = !home_;
-  if (home_) $('pseries').setAttribute('aria-label', 'ارجع لصفحة ' + home_.name);
-  $('pseries').onclick = function () { if (home_) goTitle(home_); };
+  $('pseries').textContent = home_ ? home_.name : '';
+  var pb_ = $('pBack'); pb_.hidden = !home_; pb_.textContent = '';
+  if (home_) {
+    pb_.appendChild(icon('M9 6l6 6-6 6', 18));
+    pb_.appendChild(document.createTextNode(t !== v ? 'العودة لواجهة المسلسل' : 'العودة لواجهة القناة'));
+    pb_.onclick = function () { goTitle(home_); };
+  }
   $('ptitle').textContent = dispSeason(v);
   var multi = queue.length > 1;
   $('btnPrev').hidden = $('btnNext').hidden = !multi; $('pstrip').hidden = !multi;
