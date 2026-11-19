@@ -1856,13 +1856,16 @@ function startVideo(v, st) {
     if (audioChecked || demo || vd.paused || vd.currentTime < 4) return;
     audioChecked = true;
     var noAudio = (typeof vd.webkitAudioDecodedByteCount === 'number' && vd.webkitAudioDecodedByteCount === 0) || (vd.audioTracks && vd.audioTracks.length === 0);
-    if (!noAudio || vd.muted || offline) return;
+    /* التلفزيون غالباً يشغّل صوت AC3 بنفسه، فما نزعجه بالرسالة. وإذا سكّرتها مرة لمسلسل، ما تطلع له مرة ثانية */
+    var tq = titleOf(v), qk = 'noaudio:' + (tq ? tq.id : v.id);
+    if (!noAudio || vd.muted || offline || IS_TV || jget(qk, false)) return;
     var n = el('div', 'pnote audnote');
     n.appendChild(el('span', '', 'ما فيه صوت؟ صوت هذا الملف بصيغة ما يشغّلها الجوال.'));
     var g = el('button', 'btn small primary', 'شغّل بمشغّل Google (فيه صوت)'); g.type = 'button';
     g.onclick = function () { var t = vd.currentTime; stopVideo(); driveFrame(v, st, 'مشغّل Google يشغّل الصوت. للحل الدائم حوّل الملف بأداة Convert.bat. وقفت عند ' + clock(t) + '.'); };
-    var x = el('button', 'iconbtn', ''); x.type = 'button'; x.setAttribute('aria-label', 'إغلاق'); x.appendChild(icon('M6 6l12 12M18 6L6 18', 18)); x.onclick = function () { n.remove(); };
+    var x = el('button', 'iconbtn', ''); x.type = 'button'; x.setAttribute('aria-label', 'إغلاق'); x.appendChild(icon('M6 6l12 12M18 6L6 18', 18)); x.onclick = function () { jset(qk, true); n.remove(); };
     n.appendChild(g); n.appendChild(x); st.appendChild(n);
+    setTimeout(function () { if (n.parentNode) n.remove(); }, 10000);
   });
   vd.addEventListener('timeupdate', function () {
     if (Date.now() - saved > 4000) { savePos(v, vd); saved = Date.now(); }
@@ -2139,7 +2142,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795087944';
+var APP_V = '1795089862';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
