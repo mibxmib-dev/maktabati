@@ -641,8 +641,14 @@ function loadKids(id) {
       return d.nextPageToken ? page(d.nextPageToken) : ids;
     });
   }
-  nd.loading = page().then(function (a) { nd.kids = a; nd.images = imgs; nd.loading = null; return a; }, function (e) { nd.loading = null; throw e; });
+  nd.loading = page().then(function (a) { nd.kids = dedupe(a); nd.images = imgs; nd.loading = null; return nd.kids; }, function (e) { nd.loading = null; throw e; });
   return nd.loading;
+}
+/* إذا نفس الحلقة موجودة بصيغتين (مثلاً Doug 30.mp4 و Doug 30.mpg) نعرض وحدة بس، ونفضّل MP4 لأنها تشتغل بمشغّل التطبيق */
+function dedupe(ids) {
+  var best = {}, rank = function (n) { return /\.(mp4|m4v)$/i.test(n.name) ? 0 : /\.(webm|mov)$/i.test(n.name) ? 1 : 2; };
+  ids.forEach(function (id) { var n = nodes[id]; if (!n || n.folder) return; var k = norm(clean(n.name)); if (!best[k] || rank(n) < rank(best[k])) best[k] = n; });
+  return ids.filter(function (id) { var n = nodes[id]; if (!n || n.folder) return true; return best[norm(clean(n.name))] === n; });
 }
 /* يتأكد أن الحساب الذي دخلت به يرى المجلد الرئيسي، ويعرض بريده في الأعلى */
 function checkAccount() {
