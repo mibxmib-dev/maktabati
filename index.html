@@ -337,6 +337,8 @@ button.pseries[hidden]{display:none}
 .progline{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.22);z-index:2}
 .progline span{position:absolute;top:0;bottom:0;right:0;background:var(--accent)}
 .progline.big{position:relative;width:min(320px,80%);height:6px;border-radius:3px;overflow:hidden}
+.audnote{display:flex;flex-wrap:wrap;align-items:center;gap:8px;pointer-events:auto}
+.audnote span{flex:1 1 200px}
 .pnote{position:absolute;top:10px;left:10px;right:10px;z-index:3;background:rgba(18,10,10,.9);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;color:var(--text)}
 
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:40;max-width:min(520px,calc(100% - 32px));background:var(--text);color:var(--ground);padding:12px 16px;border-radius:12px;font-size:14px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.4)}
@@ -1848,6 +1850,20 @@ function startVideo(v, st) {
   vd.src = demo ? 'assets/demo.mp4' : 'stream/' + encodeURIComponent(v.id) + '?t=' + encodeURIComponent(token || '');
   st.appendChild(vd); curVideo = { v: v, el: vd }; if (!IS_TV) addRotate(st);
   var saved = 0, failed = false;
+  /* فيديو بدون صوت؟ غالباً الصوت بصيغة ما يفهمها متصفح الجوال (مثل AC3 أو DTS). نقترح مشغّل قوقل لأنه يحوّل الصوت */
+  var audioChecked = false;
+  vd.addEventListener('timeupdate', function () {
+    if (audioChecked || demo || vd.paused || vd.currentTime < 4) return;
+    audioChecked = true;
+    var noAudio = (typeof vd.webkitAudioDecodedByteCount === 'number' && vd.webkitAudioDecodedByteCount === 0) || (vd.audioTracks && vd.audioTracks.length === 0);
+    if (!noAudio || vd.muted || offline) return;
+    var n = el('div', 'pnote audnote');
+    n.appendChild(el('span', '', 'ما فيه صوت؟ صوت هذا الملف بصيغة ما يشغّلها الجوال.'));
+    var g = el('button', 'btn small primary', 'شغّل بمشغّل Google (فيه صوت)'); g.type = 'button';
+    g.onclick = function () { var t = vd.currentTime; stopVideo(); driveFrame(v, st, 'مشغّل Google يشغّل الصوت. للحل الدائم حوّل الملف بأداة Convert.bat. وقفت عند ' + clock(t) + '.'); };
+    var x = el('button', 'iconbtn', ''); x.type = 'button'; x.setAttribute('aria-label', 'إغلاق'); x.appendChild(icon('M6 6l12 12M18 6L6 18', 18)); x.onclick = function () { n.remove(); };
+    n.appendChild(g); n.appendChild(x); st.appendChild(n);
+  });
   vd.addEventListener('timeupdate', function () {
     if (Date.now() - saved > 4000) { savePos(v, vd); saved = Date.now(); }
     if (vd.duration && vd.currentTime / vd.duration > 0.92 && !done()[v.id]) markDone(v);
@@ -2123,7 +2139,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795074042';
+var APP_V = '1795087944';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
