@@ -110,6 +110,31 @@ button{cursor:pointer}
   .login .msg{font-size:.9em}
   #signin .chip{font-size:max(13px,calc(var(--sw) * .034));min-height:max(44px,calc(var(--sw) * .11));padding:0 1.1em;border-radius:2em}
 }
+/* التلفزيون والشاشات العريضة: نفس مشهد الكوخ الطولي في النص، والجوانب صورة مموّهة */
+body.forcep #signin{justify-content:flex-start;padding-top:0}
+body.forcep .scene{width:min(100vw,calc(100vh * .5581));width:min(100vw,calc(100svh * .5581));aspect-ratio:768/1376;-webkit-mask-image:linear-gradient(#000 78%,transparent);mask-image:linear-gradient(#000 78%,transparent)}
+body.forcep .title{left:18.23%;top:31.98%;width:65.1%}
+body.forcep #signin.wint .title{left:19.01%;top:34.08%;width:63.02%}
+body.forcep #signin.wint .winsnow{display:block;left:5.99%;top:16.79%;width:40.1%;height:23.69%;-webkit-mask:url(assets/win-mask.png) 0 0/100% 100% no-repeat;mask:url(assets/win-mask.png) 0 0/100% 100% no-repeat}
+body.forcep #signin.wint .fireglow, body.forcep #signin.wint .firecv{display:block;left:67.71%;top:39.24%;width:32.29%;height:21.8%;-webkit-mask:url(assets/fire-mask.png) 0 0/100% 100% no-repeat;mask:url(assets/fire-mask.png) 0 0/100% 100% no-repeat}
+body.forcep #signin.wint .fireglow{background:radial-gradient(ellipse at 72% 62%,#ffb347,#ff7a1a 40%,rgba(255,77,0,0) 75%);mix-blend-mode:screen;opacity:.18;animation:fireglow 2.3s infinite}
+body.forcep #signin.wint .firecv{mix-blend-mode:screen}
+body.forcep #signin.wint .steamcv{display:block;left:61.2%;top:43.6%;width:38.8%;height:14.53%}
+body.forcep .tv{left:35.29%;top:46.29%;width:27.34%;height:11.99%;border-radius:6%/9%;clip-path:polygon(0 0,100% 0,100% 100%,97.6% 100%,97.6% 88.5%,95.8% 85.2%,15.4% 85.2%,13.6% 88.5%,13.6% 100%,0 100%)}
+body.forcep .neon{font-size:21cqw;margin-top:-6%}
+body.forcep .tvlight{left:8%;top:34%;width:84%;height:34%}
+body.forcep #signin{--sw:min(100vw,calc(100vh * .5581));--sw:min(100vw,calc(100svh * .5581));padding-bottom:0}
+body.forcep .login{position:absolute;z-index:6;left:0;right:0;margin:0 auto;width:calc(var(--sw) * .88);top:calc(var(--sw) * 1.7917 * .045);font-size:max(15px,calc(var(--sw) * .04));gap:.8em;text-shadow:0 1px 8px rgba(0,0,0,.8)}
+body.forcep .login .lead{font-size:1em;line-height:1.55}
+body.forcep .login .note{font-size:.8em}
+body.forcep .login .btn{font-size:1em;min-height:3.3em;border-radius:.8em}
+body.forcep .login .msg{font-size:.9em}
+body.forcep #signin .chip{font-size:max(13px,calc(var(--sw) * .034));min-height:max(44px,calc(var(--sw) * .11));padding:0 1.1em;border-radius:2em}
+body.forcep #signin{background:#0E0606}
+body.forcep #signin::before{content:"";position:fixed;inset:-40px;background:url(assets/scene-winter-p.webp) center/cover no-repeat;filter:blur(28px) brightness(.45) saturate(1.2);z-index:-1;pointer-events:none}
+body.forcep #signin{isolation:isolate}
+body.forcep #signin .scene{-webkit-mask-image:none;mask-image:none;box-shadow:0 0 80px rgba(0,0,0,.7)}
+
 
 /* الأزرار والنماذج */
 .btn{min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--raised);color:var(--text);padding:0 18px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:10px}
@@ -1785,6 +1810,9 @@ $('pFav').onclick = function () { toggleFav(titleOf(queue[qIndex])); play(qIndex
 /* واجهة تسجيل الدخول: صورة الكوخ الشتوي بنفس مؤثرات المقدمة */
 (function () {
   $('srcScene').srcset = 'assets/scene-winter-p.webp'; $('srcTitle').srcset = 'assets/title-winter-p.webp'; $('signin').classList.add('wint');
+  /* على الشاشة العريضة (التلفزيون) نعرض نفس مشهد الكوخ الطولي */
+  function wide() { var w = !(window.matchMedia && matchMedia('(max-aspect-ratio: 1/1)').matches); document.body.classList.toggle('forcep', w); $('srcScene').media = w ? 'all' : '(max-aspect-ratio: 1/1)'; $('srcTitle').media = w ? 'all' : '(max-aspect-ratio: 1/1)'; }
+  wide(); window.addEventListener('resize', wide);
 })();
 (function () {
   var cv = $('winSnow'), cx = cv.getContext('2d'), flakes = [], raf = 0, last = 0, w = 0, h = 0;
