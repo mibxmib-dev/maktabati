@@ -334,6 +334,12 @@ button.pseries[hidden]{display:none}
 .rotbtn{position:absolute;top:10px;right:10px;z-index:6;width:48px;height:48px;border-radius:24px;border:0;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:opacity .4s ease}
 .rotbtn.idle{opacity:0;pointer-events:none}
 .focusbtn{right:66px}
+.dubwrap{position:absolute;top:10px;right:122px;z-index:7}
+.dubbtn{position:static}
+.dubmenu{position:absolute;top:56px;right:0;min-width:170px;background:var(--raised);border:1px solid var(--line);border-radius:12px;padding:6px;display:flex;flex-direction:column;gap:4px;box-shadow:0 12px 30px rgba(0,0,0,.6)}
+.dubmenu[hidden]{display:none}
+.dubmenu button{min-height:42px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--text);font:inherit;font-size:15px;text-align:start;padding:0 12px;cursor:pointer}
+.dubmenu button[aria-checked="true"]{background:var(--accent);color:var(--on-accent);font-weight:700}
 #player.focus .pbar,#player.focus .pback,#player.focus .pctl,#player.focus .pstrip{display:none}
 .rotbtn:focus-visible{outline:2px solid var(--accent);opacity:1}
 .stage:fullscreen{background:#000}
@@ -653,9 +659,9 @@ function loadKids(id, force) {
   var nd = nodes[id];
   if (nd.kids && !force) return Promise.resolve(nd.kids);
   if (nd.loading) return nd.loading;
-  var ids = [], imgs = [];
+  var ids = [], imgs = [], auds = [];
   function page(tok) {
-    var q = "'" + id + "' in parents and trashed = false and (mimeType = '" + FOLDER_MIME + "' or mimeType contains 'video/' or mimeType contains 'image/')";
+    var q = "'" + id + "' in parents and trashed = false and (mimeType = '" + FOLDER_MIME + "' or mimeType contains 'video/' or mimeType contains 'image/' or mimeType contains 'audio/')";
     var url = 'https://www.googleapis.com/drive/v3/files?pageSize=200&orderBy=folder,name_natural' +
       '&fields=' + encodeURIComponent('nextPageToken,files(id,name,mimeType,thumbnailLink,createdTime,videoMediaMetadata(durationMillis))') +
       '&supportsAllDrives=true&includeItemsFromAllDrives=true&q=' + encodeURIComponent(q) + (tok ? '&pageToken=' + encodeURIComponent(tok) : '');
@@ -667,6 +673,7 @@ function loadKids(id, force) {
     }).then(function (d) {
       (d.files || []).forEach(function (f) {
         if (f.mimeType.indexOf('image/') === 0) { imgs.push({ id: f.id, name: f.name, thumb: f.thumbnailLink || '' }); return; }
+        if (f.mimeType.indexOf('audio/') === 0) { auds.push({ id: f.id, name: f.name }); return; }
         var nn = node(f.id, f.name, f.mimeType === FOLDER_MIME, id, f.videoMediaMetadata ? Number(f.videoMediaMetadata.durationMillis) : 0);
         if (f.thumbnailLink && f.mimeType !== FOLDER_MIME) nn.thumb = f.thumbnailLink;
         nn.created = Date.parse(f.createdTime) || 0;
@@ -685,9 +692,22 @@ function loadKids(id, force) {
     var ads = [];
     return Promise.all(picDirs.map(function (pid) { return loadKids(pid, force).then(function () { imgs = imgs.concat(nodes[pid].images || []); }, function () {}); })
       .concat(adDirs.map(function (aid) { return loadKids(aid, force).then(function (k) { k.forEach(function (x) { if (nodes[x] && !nodes[x].folder) ads.push(x); }); }, function () {}); })))
-      .then(function () { nd.ads = ads; return a; });
+      .then(function () { nd.ads = ads; attachDubs(a, auds); return a; });
   }).then(function (a) { nd.kids = dedupe(a); nd.images = imgs; nd.loading = null; return nd.kids; }, function (e) { nd.loading = null; throw e; });
   return nd.loading;
+}
+/* الدبلجة الثانية: ملف صوت بجانب الحلقة باسمها + رمز اللغة، مثل «Pooh S01E01.eng.m4a» */
+var LANGS = { ara: 'العربية', ar: 'العربية', eng: 'English', en: 'English', fre: 'Français', fra: 'Français', fr: 'Français', spa: 'Español', es: 'Español', ger: 'Deutsch', deu: 'Deutsch', jpn: '日本語', ja: '日本語', tur: 'Türkçe', tr: 'Türkçe', ita: 'Italiano', kor: '한국어', chi: '中文', zho: '中文', hin: 'हिन्दी', rus: 'Русский', por: 'Português', und: 'صوت إضافي' };
+function langName(c) { c = (c || '').toLowerCase(); var m = c.match(/^(?:a|track)(\d+)$/); return LANGS[c] || (m ? 'دبلجة ' + m[1] : 'صوت ' + c); }
+function attachDubs(ids, auds) {
+  if (!auds.length) return;
+  var byBase = {};
+  ids.forEach(function (k) { var n = nodes[k]; if (n && !n.folder) byBase[norm(clean(n.name))] = n; });
+  auds.forEach(function (a) {
+    var m = a.name.match(/^(.*)\.([a-z]{2,3}|a\d+|track\d+)\.(m4a|aac|mp3|mka|ogg|opus)$/i); if (!m) return;
+    var v = byBase[norm(m[1])]; if (!v) return;
+    v.alts = (v.alts || []).filter(function (x) { return x.id !== a.id; }); v.alts.push({ id: a.id, lang: m[2].toLowerCase() });
+  });
 }
 var ADS_RE = /^(إعلان|اعلان|إعلانات|اعلانات|فاصل|فواصل|الفواصل|promo|promos|ad|ads)$/i;
 /* إذا نفس الحلقة موجودة بصيغتين (مثلاً Doug 30.mp4 و Doug 30.mpg) نعرض وحدة بس، ونفضّل MP4 لأنها تشتغل بمشغّل التطبيق */
@@ -1867,9 +1887,44 @@ function driveFrame(v, st, note) {
   if (note) { var n = el('div', 'pnote', note); st.appendChild(n); setTimeout(function () { n.remove(); }, 6000); }
 }
 function stopVideo() {
-  endAd();
+  endAd(); stopDub();
   clearInterval(nextTimer); nextTimer = 0;
   if (curVideo) { savePos(curVideo.v, curVideo.el); try { curVideo.el.pause(); curVideo.el.removeAttribute('src'); curVideo.el.load(); } catch (e) {} curVideo = null; }
+}
+/* ===== تبديل الدبلجة ===== */
+var curDub = null;
+function stopDub() { if (curDub) { try { curDub.pause(); curDub.removeAttribute('src'); curDub.load(); } catch (e) {} curDub = null; } }
+function addDub(st, vd, v) {
+  var tq = titleOf(v), key = 'dub:' + (tq ? tq.id : v.id);
+  var wrap = el('div', 'dubwrap'), b = el('button', 'rotbtn dubbtn'); b.type = 'button'; b.setAttribute('aria-haspopup', 'true');
+  b.appendChild(icon('M3 5h12M9 3v2M5 5c0 4 3 7 7 8M13 5c-1 4-4 7-8 8M14 21l4-9 4 9M15.5 18h5', 22));
+  var menu = el('div', 'dubmenu'); menu.hidden = true; menu.setAttribute('role', 'radiogroup'); menu.setAttribute('aria-label', 'الدبلجة');
+  var opts = [{ id: '', label: 'الدبلجة الأساسية' }].concat(v.alts.map(function (a) { return { id: a.id, label: langName(a.lang), lang: a.lang }; }));
+  function choose(o, quiet) {
+    stopDub(); vd.muted = false;
+    if (o.id) {
+      var au = new Audio(); au.preload = 'auto'; au.src = 'stream/' + encodeURIComponent(o.id) + '?t=' + encodeURIComponent(token || '');
+      curDub = au; vd.muted = true;
+      var sync = function () { if (curDub !== au) return; if (Math.abs(au.currentTime - vd.currentTime) > 0.3) au.currentTime = vd.currentTime; };
+      au.addEventListener('loadedmetadata', function () { au.currentTime = vd.currentTime; if (!vd.paused) au.play().catch(function () {}); });
+      ['play', 'playing'].forEach(function (e) { vd.addEventListener(e, function () { if (curDub === au) { sync(); au.play().catch(function () {}); } }); });
+      ['pause', 'waiting'].forEach(function (e) { vd.addEventListener(e, function () { if (curDub === au) au.pause(); }); });
+      vd.addEventListener('seeked', sync); vd.addEventListener('ratechange', function () { if (curDub === au) au.playbackRate = vd.playbackRate; });
+      vd.addEventListener('volumechange', function () { if (curDub === au) { au.volume = vd.volume; } });
+      var iv = setInterval(function () { if (curDub !== au) { clearInterval(iv); return; } if (!vd.paused) sync(); }, 2000);
+      au.addEventListener('error', function () { if (curDub === au) { stopDub(); vd.muted = false; toast('ما قدرت أشغّل هذي الدبلجة، رجعت للأساسية.'); mark(''); } });
+    }
+    lset(key, o.id ? o.lang : null); mark(o.id);
+    if (!quiet) toast('الصوت: ' + o.label);
+  }
+  function mark(id) { menu.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-checked', String(x._id === id)); }); b.setAttribute('aria-label', 'الدبلجة: ' + (opts.filter(function (o) { return o.id === id; })[0] || opts[0]).label); }
+  opts.forEach(function (o) { var x = el('button', '', o.label); x.type = 'button'; x.setAttribute('role', 'radio'); x._id = o.id; x.onclick = function (e) { e.stopPropagation(); menu.hidden = true; choose(o); }; menu.appendChild(x); });
+  b.onclick = function (e) { e.stopPropagation(); menu.hidden = !menu.hidden; };
+  st.addEventListener('click', function () { menu.hidden = true; });
+  wrap.appendChild(b); wrap.appendChild(menu); st.appendChild(wrap);
+  /* نرجّع اختيارك السابق لنفس المسلسل */
+  var saved = lget(key), pre = saved && opts.filter(function (o) { return o.lang === saved; })[0];
+  mark(''); if (pre) choose(pre, true);
 }
 /* ===== الإعلانات والفواصل ===== */
 function adsFor(n) { var x = n; while (x && x.id !== rootKey) { if (x.ads && x.ads.length) return x.ads.map(function (id) { return nodes[id]; }).filter(Boolean); x = nodes[x.parent]; } return []; }
@@ -1959,6 +2014,7 @@ function startVideo(v, st) {
   if (!IS_TV) { vd.setAttribute('controlsList', 'nofullscreen nodownload'); vd.disablePictureInPicture = true; }
   vd.src = demo ? 'assets/demo.mp4' : 'stream/' + encodeURIComponent(v.id) + '?t=' + encodeURIComponent(token || '');
   st.appendChild(vd); curVideo = { v: v, el: vd }; if (!IS_TV) addRotate(st);
+  if (v.alts && v.alts.length && !demo) addDub(st, vd, v);
   var saved = 0, failed = false;
   /* فيديو بدون صوت؟ غالباً الصوت بصيغة ما يفهمها متصفح الجوال (مثل AC3 أو DTS). نقترح مشغّل قوقل لأنه يحوّل الصوت */
   var audioChecked = false;
@@ -2254,7 +2310,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795106561';
+var APP_V = '1795107407';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
