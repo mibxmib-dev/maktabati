@@ -603,6 +603,18 @@ function demoTree() {
 }
 
 /* ===== قراءة Drive وفهرسة المكتبة ===== */
+/* يعيد المحاولة تلقائياً إذا تقطّع النت أو كان Drive مشغول (429/5xx)، بدل ما يطلع خطأ */
+function fetchRetry(url, opts, tries) {
+  tries = tries || 0;
+  return fetch(url, opts).then(function (r) {
+    if ((r.status === 429 || r.status >= 500) && tries < 3) return wait(600 * Math.pow(2, tries)).then(function () { return fetchRetry(url, opts, tries + 1); });
+    return r;
+  }, function (e) {
+    if (tries < 3 && navigator.onLine) return wait(800 * Math.pow(2, tries)).then(function () { return fetchRetry(url, opts, tries + 1); });
+    throw e;
+  });
+}
+function wait(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
 function loadKids(id) {
   var nd = nodes[id];
   if (nd.kids) return Promise.resolve(nd.kids);
@@ -613,7 +625,7 @@ function loadKids(id) {
     var url = 'https://www.googleapis.com/drive/v3/files?pageSize=200&orderBy=folder,name_natural' +
       '&fields=' + encodeURIComponent('nextPageToken,files(id,name,mimeType,thumbnailLink,createdTime,videoMediaMetadata(durationMillis))') +
       '&supportsAllDrives=true&includeItemsFromAllDrives=true&q=' + encodeURIComponent(q) + (tok ? '&pageToken=' + encodeURIComponent(tok) : '');
-    return fetch(url, { headers: { Authorization: 'Bearer ' + token } }).then(function (r) {
+    return fetchRetry(url, { headers: { Authorization: 'Bearer ' + token } }).then(function (r) {
       if (r.status === 401) { lset('mk_token', null); lset('mk_exp', null); if (renew()) throw new Error('جارٍ تجديد الدخول…'); throw new Error('انتهت الجلسة. اضغط «تسجيل الخروج» ثم سجّل الدخول من جديد.'); }
       if (r.status === 404) throw new Error('لم أجد المجلد. تأكد من رابط المجلد وأنه متاح للحساب الذي سجّلت به.');
       if (!r.ok) throw new Error('تعذّرت قراءة المجلد من Drive (رمز ' + r.status + ').');
@@ -1620,6 +1632,9 @@ function renderFolder(box) {
   if (videos.length) { box.appendChild(el('h3', '', 'للمشاهدة (' + videos.length + ')')); box.appendChild(dlAllBar(videos, '')); var l = el('div', 'list'); videos.forEach(function (v) { l.appendChild(epRow(v)); }); box.appendChild(l); }
 }
 function render() {
+  /* بعد تجديد الدخول وأنت تشاهد: نرجع لنفس الحلقة من نفس المكان */
+  var rv = !demo && token && sget('mk_resumev');
+  if (rv && nodes[rv] && !nodes[rv].folder) { sset('mk_resumev', null); setTimeout(function () { playEpisode(nodes[rv]); }, 0); }
   if ($('library').hidden) return;
   var box = $('content'), keep = {};
   box.querySelectorAll('.row').forEach(function (r, i) { keep[i] = r.scrollLeft; });
@@ -1774,6 +1789,8 @@ function stopVideo() {
 /* زر تدوير الجوال: يكبّر الفيديو لكامل الشاشة ويقلبها بالعرض، وضغطة ثانية ترجعه */
 var ROT_ON = 'M16.48 2.52c3.27 1.55 5.61 4.72 5.97 8.48h1.5C23.44 4.84 18.29 0 12 0l-.66.03 3.81 3.81 1.33-1.32zm-6.25-.77c-.59-.59-1.54-.59-2.12 0L1.75 8.11c-.59.59-.59 1.54 0 2.12l12.02 12.02c.59.59 1.54.59 2.12 0l6.36-6.36c.59-.59.59-1.54 0-2.12L10.23 1.75zm4.6 19.44L2.81 9.17l6.36-6.36 12.02 12.02-6.36 6.36zm-7.31.29C4.25 19.94 1.91 16.76 1.55 13H.05C.56 19.16 5.71 24 12 24l.66-.03-3.81-3.81-1.33 1.32z';
 var ROT_OFF = 'M3 8h18a1.5 1.5 0 0 1 1.5 1.5v5A1.5 1.5 0 0 1 21 16H3a1.5 1.5 0 0 1-1.5-1.5v-5A1.5 1.5 0 0 1 3 8zM18 11v2';
+var rotSync = null;
+document.addEventListener('fullscreenchange', function () { if (rotSync) rotSync(); });
 function isFull() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
 function addRotate(st) {
   var b = el('button', 'rotbtn'); b.type = 'button';
@@ -1801,8 +1818,8 @@ function addRotate(st) {
   };
   /* يختفي الزر بعد ثواني مع أزرار الفيديو، ويرجع إذا لمست الشاشة */
   var hideT = 0; function wake() { b.classList.remove('idle'); f.classList.remove('idle'); clearTimeout(hideT); hideT = setTimeout(function () { b.classList.add('idle'); f.classList.add('idle'); }, 3000); }
-  st.addEventListener('pointerdown', wake); st.addEventListener('pointermove', wake);
-  document.addEventListener('fullscreenchange', function () { if (!isFull()) { rotated = false; try { screen.orientation.unlock(); } catch (er) {} } draw(); drawF(); });
+  st.onpointerdown = wake; st.onpointermove = wake;
+  rotSync = function () { if (!isFull()) { rotated = false; try { screen.orientation.unlock(); } catch (er) {} } draw(); drawF(); };
   draw(); drawF(); wake(); st.appendChild(b); st.appendChild(f);
 }
 function startVideo(v, st) {
@@ -1818,9 +1835,20 @@ function startVideo(v, st) {
   });
   vd.addEventListener('pause', function () { savePos(v, vd); });
   vd.addEventListener('ended', function () { markDone(v); var a = poses(); delete a[v.id]; jset('pos', a); upNext(); });
+  var retried = false;
   vd.addEventListener('error', function () {
-    if (failed || demo) return; failed = true;
-    if (offline) { st.textContent = ''; st.appendChild(el('div', 'demo', 'تعذّر تشغيل الملف المحمّل على هذا الجهاز.')); return; }
+    if (failed || demo) return;
+    if (offline) { failed = true; st.textContent = ''; st.appendChild(el('div', 'demo', 'تعذّر تشغيل الملف المحمّل على هذا الجهاز.')); return; }
+    var at = vd.currentTime || 0, code = vd.error ? vd.error.code : 0;
+    /* الجلسة انتهت وأنت تشاهد: نحفظ مكانك ونجدد الدخول، وترجع لنفس الثانية */
+    if (token && !tokenFresh() && !isDl(v.id) && canRenew()) { if (at > 5) { var ps = poses(); ps[v.id] = { t: at, d: vd.duration || 0 }; jset('pos', ps); } failed = true; sset('mk_resumev', v.id); renew(); return; }
+    /* تقطيع نت: نعيد المحاولة مرة من نفس المكان قبل ما نتحول لمشغّل قوقل */
+    if (!retried && code !== 4 && navigator.onLine) {
+      retried = true; var src = vd.src;
+      setTimeout(function () { vd.src = src; vd.addEventListener('loadedmetadata', function once() { vd.removeEventListener('loadedmetadata', once); if (at > 1) vd.currentTime = at; vd.play().catch(function () {}); }); }, 1200);
+      return;
+    }
+    failed = true;
     driveFrame(v, st, 'تعذّر تشغيل الملف هنا، فانتقلت لمشغّل Google Drive. حفظ مكان التوقف لا يعمل في هذا المشغّل.');
   });
   var p = posOf(v);
@@ -2077,6 +2105,10 @@ function renew() {
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
 window.addEventListener('online', function () { if (offline) toast('رجع الإنترنت. اضغط «تحديث» لفتح المكتبة كاملة.'); });
+setInterval(function () {
+  if (demo || offline || !token || document.hidden || !$('player').hidden) return;
+  if (Number(lget('mk_exp') || 0) - Date.now() < 3 * 60e3) renew();
+}, 60e3);
 function tokenFresh() { return token && Number(lget('mk_exp') || 0) > Date.now(); }
 document.addEventListener('visibilitychange', function () {
   if (document.visibilityState !== 'visible' || demo || offline || !token || tokenFresh()) return;
