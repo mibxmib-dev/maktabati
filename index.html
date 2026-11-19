@@ -1263,7 +1263,14 @@ var HEART = 'M12 20.5s-7.5-4.6-9.6-9.2C1 8 3 4.5 6.6 4.5c2.1 0 3.6 1.1 5.4 3.1 1
 var CHECK = 'M5 12.5l4.2 4.2L19 7';
 function poster(n) {
   var imgs, base;
-  if (n.folder) { imgs = n.images || []; return imgs.filter(function (i) { return /^(poster|cover|folder|logo|صور|غلاف|شعار)/i.test(i.name); })[0] || imgs[0] || null; }
+  if (n.folder) {
+    imgs = n.images || [];
+    var named = imgs.filter(function (i) { return /^(poster|cover|folder|logo|صور|غلاف|شعار)/i.test(i.name); })[0];
+    if (named) return named;
+    /* صور الحلقات (اسمها نفس اسم الحلقة) ما تصير غلاف للمسلسل */
+    var vids = {}; (n.kids || []).forEach(function (id) { var k = nodes[id]; if (k && !k.folder) vids[norm(clean(k.name))] = 1; });
+    return imgs.filter(function (i) { return !vids[norm(clean(i.name))]; })[0] || null;
+  }
   imgs = (nodes[n.parent] && nodes[n.parent].images) || []; base = norm(clean(n.name));
   return imgs.filter(function (i) { return norm(clean(i.name)) === base; })[0] || (n.thumb ? { id: 'v-' + n.id, thumb: n.thumb, video: true } : null);
 }
