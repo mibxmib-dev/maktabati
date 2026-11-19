@@ -211,6 +211,14 @@ body.playing #wx{display:none}
 .setacc{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:22px;border:1px solid var(--line);background:transparent;color:var(--text);font:inherit;font-size:14px;cursor:pointer}
 .setacc[aria-checked="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);font-weight:600}
 .setdot{width:18px;height:18px;border-radius:50%;flex:none}
+.adov{position:absolute;inset:0;z-index:8;background:#000;display:flex;align-items:center;justify-content:center}
+.adov video{width:100%;height:100%;object-fit:contain;background:#000}
+.adtag{position:absolute;top:12px;right:12px;background:rgba(0,0,0,.65);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:4px 10px;font-size:13px}
+.adskip{position:absolute;bottom:22px;left:16px;background:rgba(0,0,0,.7)!important;color:#fff!important;border:1px solid rgba(255,255,255,.4)!important}
+.adsnd{position:absolute;bottom:22px;right:16px}
+.adfull{position:fixed;inset:0;z-index:80;background:#000;animation:adin .5s ease}
+@keyframes adin{from{opacity:0}to{opacity:1}}
+.adclose{position:absolute;top:12px;left:12px;z-index:9;color:#fff;background:rgba(0,0,0,.5)}
 .sheetbg{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
 .sheet{width:min(520px,100%);max-height:85vh;overflow:auto;background:var(--raised);border:1px solid var(--line);border-radius:20px 20px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));animation:sheetup .3s ease}
 @media (min-width:700px){.sheetbg{align-items:center}.sheet{border-radius:20px}}
@@ -671,11 +679,17 @@ function loadKids(id, force) {
   var PICS = /^(صور|الصور|صور الحلقات|images|pictures|thumbs|thumbnails)$/i;
   nd.loading = page().then(function (a) {
     var picDirs = a.filter(function (k) { return nodes[k] && nodes[k].folder && PICS.test(nodes[k].name.trim()); });
-    a = a.filter(function (k) { return picDirs.indexOf(k) < 0; });
-    return Promise.all(picDirs.map(function (pid) { return loadKids(pid, force).then(function () { imgs = imgs.concat(nodes[pid].images || []); }, function () {}); })).then(function () { return a; });
+    /* مجلد اسمه «إعلان» داخل المسلسل: فيديوهاته إعلانات وفواصل، وما يطلع كموسم */
+    var adDirs = a.filter(function (k) { return nodes[k] && nodes[k].folder && ADS_RE.test(nodes[k].name.trim()); });
+    a = a.filter(function (k) { return picDirs.indexOf(k) < 0 && adDirs.indexOf(k) < 0; });
+    var ads = [];
+    return Promise.all(picDirs.map(function (pid) { return loadKids(pid, force).then(function () { imgs = imgs.concat(nodes[pid].images || []); }, function () {}); })
+      .concat(adDirs.map(function (aid) { return loadKids(aid, force).then(function (k) { k.forEach(function (x) { if (nodes[x] && !nodes[x].folder) ads.push(x); }); }, function () {}); })))
+      .then(function () { nd.ads = ads; return a; });
   }).then(function (a) { nd.kids = dedupe(a); nd.images = imgs; nd.loading = null; return nd.kids; }, function (e) { nd.loading = null; throw e; });
   return nd.loading;
 }
+var ADS_RE = /^(إعلان|اعلان|إعلانات|اعلانات|فاصل|فواصل|الفواصل|promo|promos|ad|ads)$/i;
 /* إذا نفس الحلقة موجودة بصيغتين (مثلاً Doug 30.mp4 و Doug 30.mpg) نعرض وحدة بس، ونفضّل MP4 لأنها تشتغل بمشغّل التطبيق */
 function dedupe(ids) {
   var best = {}, rank = function (n) { return /\.(mp4|m4v)$/i.test(n.name) ? 0 : /\.(webm|mov)$/i.test(n.name) ? 1 : 2; };
@@ -896,7 +910,7 @@ window.addEventListener('popstate', function (e) {
   if (pendingOpen) { var po = pendingOpen; pendingOpen = null; if (!(view === 'folder' && cur === po.id)) open(po); }
 });
 function open(n) {
-  if (n.folder) { navPush(); dlOnly = ''; view = 'folder'; cur = n.id; query = ''; $('q').value = ''; render(); window.scrollTo(0, 0); var s = navState(); try { history.replaceState(s, ''); } catch (e) {} return; }
+  if (n.folder) { navPush(); dlOnly = ''; adVisit = ''; idleAt = Date.now(); view = 'folder'; cur = n.id; query = ''; $('q').value = ''; render(); window.scrollTo(0, 0); var s = navState(); try { history.replaceState(s, ''); } catch (e) {} return; }
   playEpisode(n);
 }
 function playEpisode(v) {
@@ -1746,6 +1760,24 @@ function renderSettings(box) {
   ps.appendChild(el('div', 'setlabel', 'مواقيت اليوم · ' + Pray.city()[1] + ' (تقويم أم القرى)')); ps.appendChild(grid);
   ps.appendChild(el('p', 'setnote', 'الرسالة تطلع لثواني والتطبيق مفتوح، حتى وأنت تشاهد. لما تفعّله تطلع لك رسالة تجربة. التغييرات تنحفظ تلقائياً.'));
   box.appendChild(ps);
+  /* الإعلانات والفواصل */
+  var as = el('section', 'setsec'); as.appendChild(el('h3', '', 'الإعلانات والفواصل'));
+  var ar = el('div', 'setrow'); var al = el('label', '', 'إعلان إذا تركت صفحة المسلسل بدون حركة'); al.htmlFor = 'adIdleSel'; ar.appendChild(al);
+  var asel = el('select', 'setsel'); asel.id = 'adIdleSel';
+  [['off', 'بدون'], ['once', 'مرة وحدة'], ['30', 'كل نص ساعة'], ['60', 'كل ساعة']].forEach(function (o) { var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; if (adIdleMode() === o[0]) op.selected = true; asel.appendChild(op); });
+  asel.onchange = function () { lset('mk_adidle', asel.value === 'once' ? null : asel.value); };
+  ar.appendChild(asel); as.appendChild(ar);
+  var wr = el('div', 'setrow'); var wl = el('label', '', 'يطلع الإعلان بعد'); wl.htmlFor = 'adWaitSel'; wr.appendChild(wl);
+  var wsel = el('select', 'setsel'); wsel.id = 'adWaitSel';
+  [['15', '15 ثانية'], ['25', '25 ثانية'], ['60', 'دقيقة'], ['180', '3 دقائق'], ['300', '5 دقائق']].forEach(function (o) { var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1] + ' بدون حركة'; if (String(adWait()) === o[0]) op.selected = true; wsel.appendChild(op); });
+  wsel.onchange = function () { lset('mk_adwait', wsel.value === '25' ? null : wsel.value); };
+  wr.appendChild(wsel); as.appendChild(wr);
+  var pr = el('div', 'setrow'); pr.appendChild(el('span', '', 'فاصل إعلاني قبل كل حلقة'));
+  var psw = el('button', 'switch'); psw.type = 'button'; psw.setAttribute('role', 'switch'); psw.setAttribute('aria-label', 'فاصل إعلاني قبل كل حلقة'); psw.setAttribute('aria-checked', String(adPreOn()));
+  psw.onclick = function () { lset('mk_adpre', adPreOn() ? null : 'on'); render(); };
+  pr.appendChild(psw); as.appendChild(pr);
+  as.appendChild(el('p', 'setnote', 'حط فيديو الإعلان داخل مجلد اسمه «إعلان» داخل مجلد المسلسل. يطلع في صفحة المسلسل إذا ما لمست الشاشة، وتقدر تتخطاه بعد 5 ثواني.'));
+  box.appendChild(as);
   /* قوائمي */
   var ls = el('section', 'setsec'); ls.appendChild(el('h3', '', 'قوائمي'));
   var L = myLists();
@@ -1835,9 +1867,56 @@ function driveFrame(v, st, note) {
   if (note) { var n = el('div', 'pnote', note); st.appendChild(n); setTimeout(function () { n.remove(); }, 6000); }
 }
 function stopVideo() {
+  endAd();
   clearInterval(nextTimer); nextTimer = 0;
   if (curVideo) { savePos(curVideo.v, curVideo.el); try { curVideo.el.pause(); curVideo.el.removeAttribute('src'); curVideo.el.load(); } catch (e) {} curVideo = null; }
 }
+/* ===== الإعلانات والفواصل ===== */
+function adsFor(n) { var x = n; while (x && x.id !== rootKey) { if (x.ads && x.ads.length) return x.ads.map(function (id) { return nodes[id]; }).filter(Boolean); x = nodes[x.parent]; } return []; }
+function adPick(list) { return list[Math.floor(Math.random() * list.length)]; }
+function adIdleMode() { return lget('mk_adidle') || 'once'; }
+function adPreOn() { return lget('mk_adpre') === 'on'; }
+function adWait() { return Number(lget('mk_adwait') || 25); }
+function canAd(a) { return a && !offline && (demo || canStream() || (isDl(a.id) && swReady())); }
+var curAd = null;
+function endAd() { if (curAd) { var c = curAd; curAd = null; c(); } }
+/* يشغّل إعلان فوق أي مكان (المشغّل أو الشاشة كاملة)، وبعدين ينادي done */
+function playAd(a, holder, label, done) {
+  endAd();
+  var ov = el('div', 'adov'), vd = document.createElement('video'), fin = false;
+  vd.playsInline = true; vd.preload = 'auto'; vd.setAttribute('disablepictureinpicture', '');
+  vd.src = demo ? 'assets/demo.mp4' : 'stream/' + encodeURIComponent(a.id) + '?t=' + encodeURIComponent(token || '');
+  var tag = el('div', 'adtag', label), skip = el('button', 'btn small adskip', 'تخطي ›'); skip.type = 'button'; skip.hidden = true;
+  var snd = el('button', 'btn small adsnd', '🔇 شغّل الصوت'); snd.type = 'button'; snd.hidden = true;
+  function finish() { if (fin) return; fin = true; curAd = null; clearTimeout(st5); try { vd.pause(); vd.removeAttribute('src'); vd.load(); } catch (e) {} ov.remove(); if (done) done(); }
+  curAd = finish;
+  vd.onended = finish; vd.onerror = finish; skip.onclick = function (e) { e.stopPropagation(); finish(); };
+  snd.onclick = function (e) { e.stopPropagation(); vd.muted = false; snd.hidden = true; };
+  var st5 = setTimeout(function () { skip.hidden = false; try { skip.focus(); } catch (e) {} }, 5000);
+  ov.appendChild(vd); ov.appendChild(tag); ov.appendChild(skip); ov.appendChild(snd); holder.appendChild(ov);
+  vd.play().catch(function () { vd.muted = true; snd.hidden = false; vd.play().catch(finish); });
+  return finish;
+}
+/* إعلان إذا تركت صفحة المسلسل بدون حركة */
+var idleAt = Date.now(), adVisit = '';
+['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(function (ev) { window.addEventListener(ev, function () { idleAt = Date.now(); }, { passive: true, capture: true }); });
+setInterval(function () {
+  var mode = adIdleMode();
+  if (mode === 'off' || curAd || document.hidden || !$('player').hidden || $('library').hidden || view !== 'folder' || query) return;
+  var t = nodes[cur]; if (!t || !isTitle(t)) return;
+  if (Date.now() - idleAt < adWait() * 1000) return;
+  var list = adsFor(t).filter(canAd); if (!list.length) return;
+  if (mode === 'once') { if (adVisit === t.id) return; }
+  else { var last = Number(lget('mk_adlast:' + t.id) || 0); if (Date.now() - last < Number(mode) * 60e3) return; }
+  adVisit = t.id; lset('mk_adlast:' + t.id, String(Date.now()));
+  var full = el('div', 'adfull'); document.body.appendChild(full);
+  var close = el('button', 'iconbtn adclose'); close.type = 'button'; close.setAttribute('aria-label', 'إغلاق الإعلان'); close.appendChild(icon('M6 6l12 12M18 6L6 18', 24));
+  full.appendChild(close);
+  var fin = playAd(adPick(list), full, 'إعلان · ' + t.name, function () { full.remove(); idleAt = Date.now(); });
+  close.onclick = function (e) { e.stopPropagation(); fin(); };
+  full.addEventListener('keydown', function (e) { if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'GoBack') fin(); });
+  try { close.focus(); } catch (e) {}
+}, 5000);
 /* زر تدوير الجوال: يكبّر الفيديو لكامل الشاشة ويقلبها بالعرض، وضغطة ثانية ترجعه */
 var ROT_ON = 'M16.48 2.52c3.27 1.55 5.61 4.72 5.97 8.48h1.5C23.44 4.84 18.29 0 12 0l-.66.03 3.81 3.81 1.33-1.32zm-6.25-.77c-.59-.59-1.54-.59-2.12 0L1.75 8.11c-.59.59-.59 1.54 0 2.12l12.02 12.02c.59.59 1.54.59 2.12 0l6.36-6.36c.59-.59.59-1.54 0-2.12L10.23 1.75zm4.6 19.44L2.81 9.17l6.36-6.36 12.02 12.02-6.36 6.36zm-7.31.29C4.25 19.94 1.91 16.76 1.55 13H.05C.56 19.16 5.71 24 12 24l.66-.03-3.81-3.81-1.33 1.32z';
 var ROT_OFF = 'M3 8h18a1.5 1.5 0 0 1 1.5 1.5v5A1.5 1.5 0 0 1 21 16H3a1.5 1.5 0 0 1-1.5-1.5v-5A1.5 1.5 0 0 1 3 8zM18 11v2';
@@ -1980,7 +2059,9 @@ function play(i) {
   });
   $('openDrive').hidden = demo; if (!demo) $('openDrive').href = 'https://drive.google.com/file/d/' + encodeURIComponent(v.id) + '/view';
   setDlButton(v);
-  if (demo || canStream() || (isDl(v.id) && swReady())) startVideo(v, st);
+  var preAds = adPreOn() ? adsFor(v).filter(canAd).filter(function (a) { return a.id !== v.id; }) : [];
+  if (preAds.length && (demo || canStream())) playAd(adPick(preAds), st, 'فاصل · الحلقة تبدأ بعده', function () { if (queue[qIndex] === v && !$('player').hidden) startVideo(v, st); });
+  else if (demo || canStream() || (isDl(v.id) && swReady())) startVideo(v, st);
   else if (offline) st.appendChild(el('div', 'demo', 'هذه الحلقة غير محمّلة. اتصل بالإنترنت لمشاهدتها.'));
   else driveFrame(v, st);
   if ($('player').hidden) navPush({ p: 1 });
@@ -2173,7 +2254,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795099536';
+var APP_V = '1795106561';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
