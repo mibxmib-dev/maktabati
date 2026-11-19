@@ -174,7 +174,7 @@ summary{cursor:pointer;font-size:14px;color:var(--muted);min-height:32px}
 .field input{min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--ground);color:var(--text);padding:0 12px;direction:ltr;text-align:left}
 
 /* المكتبة */
-header.top{position:sticky;top:0;background:var(--ground);border-bottom:1px solid var(--line);z-index:5}
+header.top{position:sticky;top:0;background:var(--ground);border-bottom:1px solid var(--line);z-index:5;transform:translateZ(0)}
 .top .wrap{display:flex;align-items:center;gap:10px;min-height:64px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px}
 .top h1{margin:0;font-size:22px}
 .top h1 button{background:none;border:0;color:var(--text);font:inherit;font-weight:700;min-height:44px;padding:0}
@@ -185,7 +185,7 @@ header.top{position:sticky;top:0;background:var(--ground);border-bottom:1px soli
 .status{font-size:13px;color:var(--muted);padding:10px 0 0}
 main{padding-bottom:48px;position:relative;z-index:2}
 /* أجواء الشتاء: ثلج أو مطر خلف المحتوى، ما يغطي الأغلفة ولا يمنع اللمس */
-#wx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;display:none}
+#wx{position:fixed;top:0;left:0;width:100%;height:100vh;height:100lvh;pointer-events:none;z-index:1;display:none;transform:translateZ(0);will-change:transform}
 body.wx-on #wx{display:block}
 body.playing #wx{display:none}
 .wxbtn{flex:none}
@@ -213,10 +213,10 @@ body.playing #wx{display:none}
 .setdot{width:18px;height:18px;border-radius:50%;flex:none}
 .setnote{color:var(--muted);font-size:13px;margin:16px 0 0}
 /* الخلفية الشتوية خلف المكتبة، معتّمة عشان المحتوى يبقى واضح */
-#wxbg{position:fixed;inset:0;z-index:0;display:none;background:linear-gradient(rgba(17,12,11,.62),rgba(17,12,11,.8) 55%,rgba(17,12,11,.9)),url('assets/winter-bg.webp') center 30%/cover no-repeat}
+#wxbg{position:fixed;top:0;left:0;width:100%;height:100vh;height:100lvh;z-index:0;display:none;transform:translateZ(0);background:linear-gradient(rgba(17,12,11,.62),rgba(17,12,11,.8) 55%,rgba(17,12,11,.9)),url('assets/winter-bg.webp') center 30%/cover no-repeat}
 body.wxbg-on #wxbg{display:block}
 body.playing #wxbg{display:none}
-body.wxbg-on header.top{background:rgba(17,12,11,.88);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+body.wxbg-on header.top{background:rgba(17,12,11,.96)}
 .wxbtn.on{color:var(--accent)}
 .rowhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:22px 0 10px}
 .rowhead h2{margin:0;font-size:18px;font-weight:700}
@@ -1152,7 +1152,8 @@ var WX = (function () {
     rain: 'M7 15a4 4 0 0 1 .5-8A5.5 5.5 0 0 1 18 8.5a3.5 3.5 0 0 1-.5 6.5H7zM8 18l-1 2.5M12 18l-1 2.5M16 18l-1 2.5'
   };
   var LABEL = { off: 'متوقفة', snow: 'ثلج', rain: 'مطر' };
-  function size() { dpr = Math.min(2, window.devicePixelRatio || 1); w = innerWidth; h = innerHeight; cv.width = w * dpr; cv.height = h * dpr; cx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+  /* نرسم على أطول ارتفاع للشاشة، عشان لما يختفي شريط المتصفح وأنت تسحب ما ينعاد رسم الثلج ويرمش */
+  function size() { dpr = Math.min(2, window.devicePixelRatio || 1); w = innerWidth; h = Math.max(innerHeight, (screen && screen.height) || 0, document.documentElement.clientHeight); cv.width = w * dpr; cv.height = h * dpr; cv.style.height = h + 'px'; cx.setTransform(dpr, 0, 0, dpr, 0, 0); }
   function make(top) {
     if (mode === 'snow') return { x: Math.random() * w, y: top ? -10 : Math.random() * h, r: 1 + Math.random() * 2.6, v: 18 + Math.random() * 38, s: Math.random() * 6.28, a: 0.35 + Math.random() * 0.5 };
     return { x: Math.random() * (w + 120), y: top ? -30 : Math.random() * h, l: 10 + Math.random() * 16, v: 520 + Math.random() * 380, a: 0.12 + Math.random() * 0.22 };
@@ -1203,7 +1204,7 @@ var WX = (function () {
   document.addEventListener('click', function () { if (!menu.hidden) openMenu(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !menu.hidden) { openMenu(false); btn.focus(); } });
   function sync() { Theme.apply(); }
-  window.addEventListener('resize', function () { if (mode !== 'off') { size(); fill(); } });
+  window.addEventListener('resize', function () { if (mode !== 'off' && Math.abs(innerWidth - w) > 2) { size(); fill(); } });
   document.addEventListener('visibilitychange', kick);
   new MutationObserver(kick).observe($('player'), { attributes: true, attributeFilter: ['hidden'] });
   new MutationObserver(kick).observe($('library'), { attributes: true, attributeFilter: ['hidden'] });
