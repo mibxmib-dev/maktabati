@@ -1271,7 +1271,7 @@ function poster(n) {
   var imgs, base;
   if (n.folder) {
     imgs = n.images || [];
-    var named = imgs.filter(function (i) { return /^(poster|cover|folder|logo|صور|غلاف|شعار)/i.test(i.name); })[0];
+    var named = imgs.filter(function (i) { return /(poster|cover|folder|logo|غلاف|بوستر|شعار)/i.test(i.name) || /^صور/.test(i.name); })[0];
     if (named) return named;
     /* صور الحلقات (اسمها نفس اسم الحلقة) ما تصير غلاف للمسلسل */
     var vids = {}; (n.kids || []).forEach(function (id) { var k = nodes[id]; if (k && !k.folder) vids[norm(clean(k.name))] = 1; });
@@ -2117,6 +2117,16 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
+var APP_V = '1795073923';
+function checkUpdate() {
+  if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
+  fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
+    var m = t.match(/var APP_V = '([^']+)'/);
+    if (m && m[1] !== APP_V && $('player').hidden) { toast('فيه تحديث جديد للتطبيق… جارٍ التحديث'); setTimeout(function () { location.reload(); }, 900); }
+  }).catch(function () {});
+}
+document.addEventListener('visibilitychange', function () { if (!document.hidden) checkUpdate(); });
+setInterval(checkUpdate, 30 * 60e3); setTimeout(checkUpdate, 5000);
 window.addEventListener('online', function () { if (offline) toast('رجع الإنترنت. اضغط «تحديث» لفتح المكتبة كاملة.'); });
 setInterval(function () {
   if (demo || offline || !token || document.hidden || !$('player').hidden) return;
