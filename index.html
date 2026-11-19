@@ -565,7 +565,31 @@ var view = 'home', cur = '', query = '';
 var queue = [], qIndex = 0, timer = null;
 
 function showMsg(t) { var m = $('signinMsg'); m.textContent = t; m.hidden = !t; if (t) { $('signin').classList.add('done'); } }
-function node(id, name, folder, parent, dur) { return nodes[id] = { id: id, name: name, folder: folder, parent: parent, dur: dur || 0, kids: folder ? null : undefined }; }
+var refreshing = false;
+function node(id, name, folder, parent, dur) {
+  /* وقت التحديث بالخلفية نحدّث العنصر الموجود ونخلي محتواه القديم ظاهر لين يوصل الجديد */
+  var o = nodes[id];
+  if (refreshing && o) { o.name = name; o.folder = folder; o.parent = parent; o.dur = dur || 0; o.seen = true; return o; }
+  return nodes[id] = { id: id, name: name, folder: folder, parent: parent, dur: dur || 0, kids: folder ? null : undefined, seen: true };
+}
+/* ===== حفظ فهرس المكتبة في الجهاز: يفتح على طول، ويتحدّث بالخلفية ===== */
+var IDB = {
+  db: function () { return new Promise(function (ok, no) { try { var r = indexedDB.open('hm', 1); r.onupgradeneeded = function () { r.result.createObjectStore('kv'); }; r.onsuccess = function () { ok(r.result); }; r.onerror = function () { no(r.error); }; } catch (e) { no(e); } }); },
+  get: function (k) { return IDB.db().then(function (d) { return new Promise(function (ok) { var t = d.transaction('kv').objectStore('kv').get(k); t.onsuccess = function () { ok(t.result); }; t.onerror = function () { ok(null); }; }); }).catch(function () { return null; }); },
+  set: function (k, v) { return IDB.db().then(function (d) { return new Promise(function (ok) { var t = d.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = ok; t.onerror = ok; }); }).catch(function () {}); }
+};
+function libKey() { return 'lib:' + rootId + ':' + (lget('mk_email') || ''); }
+function saveLib() {
+  var out = {};
+  Object.keys(nodes).forEach(function (k) { var n = nodes[k], c = {}; for (var p in n) if (p !== 'loading' && p !== 'seen') c[p] = n[p]; out[k] = c; });
+  IDB.set(libKey(), { at: Date.now(), nodes: out });
+}
+/* بعد التحديث: نشيل اللي انحذف من Drive */
+function pruneLib() {
+  var keep = {}, st = [rootKey];
+  while (st.length) { var id = st.pop(); if (keep[id] || !nodes[id]) continue; keep[id] = 1; (nodes[id].kids || []).forEach(function (k) { st.push(k); }); }
+  Object.keys(nodes).forEach(function (k) { if (!keep[k]) delete nodes[k]; });
+}
 
 /* ===== بيانات العرض التجريبي ===== */
 function demoTree() {
@@ -617,9 +641,9 @@ function fetchRetry(url, opts, tries) {
   });
 }
 function wait(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
-function loadKids(id) {
+function loadKids(id, force) {
   var nd = nodes[id];
-  if (nd.kids) return Promise.resolve(nd.kids);
+  if (nd.kids && !force) return Promise.resolve(nd.kids);
   if (nd.loading) return nd.loading;
   var ids = [], imgs = [];
   function page(tok) {
@@ -648,7 +672,7 @@ function loadKids(id) {
   nd.loading = page().then(function (a) {
     var picDirs = a.filter(function (k) { return nodes[k] && nodes[k].folder && PICS.test(nodes[k].name.trim()); });
     a = a.filter(function (k) { return picDirs.indexOf(k) < 0; });
-    return Promise.all(picDirs.map(function (pid) { return loadKids(pid).then(function () { imgs = imgs.concat(nodes[pid].images || []); }, function () {}); })).then(function () { return a; });
+    return Promise.all(picDirs.map(function (pid) { return loadKids(pid, force).then(function () { imgs = imgs.concat(nodes[pid].images || []); }, function () {}); })).then(function () { return a; });
   }).then(function (a) { nd.kids = dedupe(a); nd.images = imgs; nd.loading = null; return nd.kids; }, function (e) { nd.loading = null; throw e; });
   return nd.loading;
 }
@@ -667,18 +691,18 @@ function checkAccount() {
     if (r.status === 404 || r.status === 403) { fatal = 'هذا الحساب' + ($('who').textContent ? ' (' + $('who').textContent + ')' : '') + ' لا يرى مجلد المكتبة. اضغط «تسجيل الخروج» ثم ادخل بحساب المكتبة، أو شارك المجلد مع هذا الحساب.'; schedule(); }
   }).catch(function () {});
 }
-function crawl() {
-  var gen = ++crawlGen, q = [rootKey], active = 0; crawling = true; fatal = '';
+function crawl(bg) {
+  var gen = ++crawlGen, q = [rootKey], active = 0; crawling = !bg; refreshing = !!bg; fatal = '';
   checkAccount();
   function next() {
     if (gen !== crawlGen) return;
     while (active < 4 && q.length) (function (id) {
       active++;
-      loadKids(id).then(function (k) { k.forEach(function (c) { if (nodes[c].folder) q.push(c); }); })
-        .catch(function (e) { if (id === rootKey) { if (noNet(e) && hasDl()) { openOffline(); return; } fatal = noNet(e) ? 'ما فيه اتصال بالإنترنت. اتصل ثم اضغط «تحديث».' : e.message; } else nodes[id].kids = []; })
+      loadKids(id, bg).then(function (k) { k.forEach(function (c) { if (nodes[c].folder) q.push(c); }); })
+        .catch(function (e) { if (id === rootKey) { if (bg) { refreshing = false; return; } if (noNet(e) && hasDl()) { openOffline(); return; } fatal = noNet(e) ? 'ما فيه اتصال بالإنترنت. اتصل ثم اضغط «تحديث».' : e.message; } else nodes[id].kids = []; })
         .then(function () { active--; schedule(); next(); });
     })(q.shift());
-    if (!active && !q.length) { crawling = false; schedule(); }
+    if (!active && !q.length) { var done = crawling || refreshing; crawling = false; if (refreshing) { refreshing = false; pruneLib(); } if (done && !fatal) saveLib(); schedule(); }
   }
   next();
 }
@@ -1786,7 +1810,14 @@ function openLibrary() {
   $('signin').hidden = true; $('library').hidden = false; $('demoBadge').hidden = !demo;
   nodes = {}; rootKey = demo ? 'demo-root' : rootId; node(rootKey, 'الرئيسية', true, null);
   view = 'home'; query = ''; $('q').value = ''; filter = 'all';
-  if (demo) { nodes[rootKey].kids = []; demoTree(); crawling = false; fatal = ''; crawlGen++; render(); } else { crawl(); render(); }
+  if (demo) { nodes[rootKey].kids = []; demoTree(); crawling = false; fatal = ''; crawlGen++; render(); return; }
+  /* نعرض آخر نسخة محفوظة على طول، وبعدين نحدّث من Drive بالخلفية */
+  var gen = ++crawlGen; crawling = true; render();
+  IDB.get(libKey()).then(function (c) {
+    if (gen !== crawlGen || demo || offline) return;
+    if (c && c.nodes && c.nodes[rootKey]) { nodes = c.nodes; crawling = false; render(); crawl(true); }
+    else { crawl(); render(); }
+  });
 }
 $('q').oninput = function () { query = this.value.trim(); render(); };
 $('btnHome').onclick = goHome;
@@ -2142,7 +2173,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795089862';
+var APP_V = '1795099536';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
