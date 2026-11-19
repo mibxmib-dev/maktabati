@@ -641,7 +641,13 @@ function loadKids(id) {
       return d.nextPageToken ? page(d.nextPageToken) : ids;
     });
   }
-  nd.loading = page().then(function (a) { nd.kids = dedupe(a); nd.images = imgs; nd.loading = null; return nd.kids; }, function (e) { nd.loading = null; throw e; });
+  /* مجلد اسمه «صور» داخل المسلسل: صوره تنضم لصور المسلسل وما يطلع كموسم */
+  var PICS = /^(صور|الصور|صور الحلقات|images|pictures|thumbs|thumbnails)$/i;
+  nd.loading = page().then(function (a) {
+    var picDirs = a.filter(function (k) { return nodes[k] && nodes[k].folder && PICS.test(nodes[k].name.trim()); });
+    a = a.filter(function (k) { return picDirs.indexOf(k) < 0; });
+    return Promise.all(picDirs.map(function (pid) { return loadKids(pid).then(function () { imgs = imgs.concat(nodes[pid].images || []); }, function () {}); })).then(function () { return a; });
+  }).then(function (a) { nd.kids = dedupe(a); nd.images = imgs; nd.loading = null; return nd.kids; }, function (e) { nd.loading = null; throw e; });
   return nd.loading;
 }
 /* إذا نفس الحلقة موجودة بصيغتين (مثلاً Doug 30.mp4 و Doug 30.mpg) نعرض وحدة بس، ونفضّل MP4 لأنها تشتغل بمشغّل التطبيق */
@@ -2117,7 +2123,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795073923';
+var APP_V = '1795074042';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
