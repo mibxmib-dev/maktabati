@@ -334,6 +334,37 @@ button.pseries[hidden]{display:none}
 .rotbtn{position:absolute;top:10px;right:10px;z-index:6;width:48px;height:48px;border-radius:24px;border:0;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:opacity .4s ease}
 .rotbtn.idle{opacity:0;pointer-events:none}
 .focusbtn{right:66px}
+/* ===== حركة التحديث الكرتونية ===== */
+.rfx{position:fixed;left:14px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:19;display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none;opacity:0;transform:translateY(20px) scale(.6);transition:opacity .35s,transform .45s cubic-bezier(.3,1.6,.5,1)}
+.rfx.on{opacity:1;transform:none}
+.rfxa{display:grid;place-items:center;width:84px;height:84px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fffaf0,#f1dfc2);border:3px solid #1a120c;box-shadow:0 6px 14px rgba(0,0,0,.5),inset 0 -5px 0 rgba(0,0,0,.08)}
+.rfxa svg{width:62px;height:62px;overflow:visible}
+.rfxopt .rfxa{width:56px;height:56px;border-width:2.5px;box-shadow:none}.rfxopt .rfxa svg{width:42px;height:42px}.rfxopt .rfxa .ok{display:none}
+.rfxa.none{background:transparent;border-style:dashed;border-color:var(--line)}
+.rfx .rfxtag{font-size:12px;font-weight:700;background:var(--raised);color:var(--text);border:2px solid #1a120c;border-radius:999px;padding:2px 10px;white-space:nowrap}
+.rfxa .ol{stroke:#1a120c;stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
+.rfxa .lvl{transform-box:fill-box;transition:transform .6s cubic-bezier(.3,1.4,.5,1)}
+.rfxa .wave{animation:rfxWave 1.6s linear infinite}
+.rfxa .bub{animation:rfxBub 1.8s ease-in infinite;opacity:0}
+.rfxa .bub:nth-of-type(2){animation-delay:.6s}.rfxa .bub:nth-of-type(3){animation-delay:1.2s}
+.rfxa .flame{transform-box:fill-box;transform-origin:50% 100%;animation:rfxFlick .35s ease-in-out infinite alternate}
+.rfxa .wob{transform-box:fill-box;transform-origin:50% 100%;animation:rfxWob 1.4s ease-in-out infinite}
+.rfxa .drip{animation:rfxDrip 1.5s ease-in infinite}.rfxa .drip+.drip{animation-delay:.75s}
+.rfxa .eye{transform-box:fill-box;transform-origin:center;animation:rfxBlink 3.2s infinite}
+.rfx.done .rfxa{animation:rfxJoy .7s cubic-bezier(.3,1.8,.5,1)}
+.rfxa .ok{opacity:0;transform-box:fill-box;transform-origin:center;transform:scale(0);transition:transform .4s cubic-bezier(.3,1.8,.5,1),opacity .2s}
+.rfx.done .rfxa .ok{opacity:1;transform:scale(1)}
+@keyframes rfxWave{from{transform:translateX(0)}to{transform:translateX(-24px)}}
+@keyframes rfxBub{0%{opacity:0;transform:translateY(0)}20%{opacity:.9}100%{opacity:0;transform:translateY(-26px)}}
+@keyframes rfxFlick{from{transform:scale(1,1) rotate(-4deg)}to{transform:scale(.85,1.15) rotate(4deg)}}
+@keyframes rfxWob{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+@keyframes rfxDrip{0%{transform:translateY(0);opacity:1}100%{transform:translateY(14px);opacity:0}}
+@keyframes rfxBlink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+@keyframes rfxJoy{0%{transform:scale(1)}40%{transform:scale(1.25) rotate(-8deg)}70%{transform:scale(.95) rotate(4deg)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.rfxa,.rfxa *{animation:none!important}}
+.rfxopts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.rfxopt{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border-radius:14px;border:2px solid var(--line);background:transparent;color:var(--text);font:inherit;font-size:13px;cursor:pointer;min-height:44px}
+.rfxopt[aria-checked="true"]{border-color:var(--accent)}
 .dubwrap{position:absolute;top:10px;right:122px;z-index:7}
 .dubbtn{position:static}
 .dubmenu{position:absolute;top:56px;right:0;min-width:170px;background:var(--raised);border:1px solid var(--line);border-radius:12px;padding:6px;display:flex;flex-direction:column;gap:4px;box-shadow:0 12px 30px rgba(0,0,0,.6)}
@@ -736,17 +767,18 @@ function checkAccount() {
   }).catch(function () {});
 }
 function crawl(bg) {
-  var gen = ++crawlGen, q = [rootKey], active = 0; crawling = !bg; refreshing = !!bg; fatal = '';
+  var gen = ++crawlGen, q = [rootKey], active = 0, doneN = 0, before = bg ? Object.keys(nodes).length : 0; crawling = !bg; refreshing = !!bg; fatal = '';
+  if (bg) RFX.start();
   checkAccount();
   function next() {
     if (gen !== crawlGen) return;
     while (active < 4 && q.length) (function (id) {
       active++;
       loadKids(id, bg).then(function (k) { k.forEach(function (c) { if (nodes[c].folder) q.push(c); }); })
-        .catch(function (e) { if (id === rootKey) { if (bg) { refreshing = false; return; } if (noNet(e) && hasDl()) { openOffline(); return; } fatal = noNet(e) ? 'ما فيه اتصال بالإنترنت. اتصل ثم اضغط «تحديث».' : e.message; } else nodes[id].kids = []; })
-        .then(function () { active--; if (!bg) schedule(); next(); });
+        .catch(function (e) { if (id === rootKey) { if (bg) { refreshing = false; RFX.done(false); return; } if (noNet(e) && hasDl()) { openOffline(); return; } fatal = noNet(e) ? 'ما فيه اتصال بالإنترنت. اتصل ثم اضغط «تحديث».' : e.message; } else nodes[id].kids = []; })
+        .then(function () { active--; doneN++; if (!bg) schedule(); else RFX.set(doneN / (doneN + active + q.length + 1)); next(); });
     })(q.shift());
-    if (!active && !q.length) { var done = crawling || refreshing; crawling = false; if (refreshing) { refreshing = false; pruneLib(); } if (done && !fatal) saveLib(); schedule(); }
+    if (!active && !q.length) { var done = crawling || refreshing; crawling = false; if (refreshing) { refreshing = false; pruneLib(); RFX.done(Object.keys(nodes).length !== before); } if (done && !fatal) saveLib(); schedule(); }
   }
   next();
 }
@@ -1790,6 +1822,18 @@ function renderSettings(box) {
   sec.appendChild(acs);
   sec.appendChild(el('p', 'setnote', 'الثلج والمطر تتحكم فيهم من زر الثلج في الصفحة الرئيسية.'));
   box.appendChild(sec);
+  /* حركة التحديث */
+  var rs = el('section', 'setsec'); rs.appendChild(el('h3', '', 'حركة التحديث'));
+  var ro = el('div', 'rfxopts'); ro.setAttribute('role', 'radiogroup'); ro.setAttribute('aria-label', 'حركة التحديث');
+  RFX.modes.forEach(function (o) {
+    var b = el('button', 'rfxopt'); b.type = 'button'; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', String(RFX.mode() === o[0]));
+    b.appendChild(RFX.preview(o[0])); b.appendChild(el('span', '', o[1]));
+    b.onclick = function () { lset('mk_rfx', o[0] === 'cup' ? null : o[0]); RFX.reset(); ro.querySelectorAll('.rfxopt').forEach(function (x) { x.setAttribute('aria-checked', String(x === b)); }); if (o[0] !== 'off') RFX.demo(); };
+    ro.appendChild(b);
+  });
+  rs.appendChild(ro);
+  rs.appendChild(el('p', 'setnote', 'تطلع في الزاوية لما التطبيق يحدّث المكتبة من Drive، وتختفي لما يخلص. اضغط على أي وحدة تشوفها تشتغل.'));
+  box.appendChild(rs);
   /* الصلاة */
   var ps = el('section', 'setsec'); ps.appendChild(el('h3', '', 'تذكير الصلاة'));
   var row = el('div', 'setrow'); row.appendChild(el('span', '', 'رسالة «لا تنسَ الصلاة» بعد الأذان بنص ساعة'));
@@ -1917,6 +1961,69 @@ function stopVideo() {
   clearInterval(nextTimer); nextTimer = 0;
   if (curVideo) { savePos(curVideo.v, curVideo.el); try { curVideo.el.pause(); curVideo.el.removeAttribute('src'); curVideo.el.load(); } catch (e) {} curVideo = null; }
 }
+/* ===== حركة التحديث الكرتونية: كوب يتعبّى / شمعة تذوب / رجل ثلج يذوب ===== */
+var RFX = (function () {
+  var NS = 'http://www.w3.org/2000/svg', box = null, p = 0, hideT = 0, demoT = 0, uid = 0;
+  var MODES = [['cup', 'كوب يتعبّى'], ['candle', 'شمعة تذوب'], ['snow', 'رجل ثلج يذوب'], ['off', 'بدون']];
+  function mode() { return lget('mk_rfx') || 'cup'; }
+  function face(x, y) { return '<circle class="eye" cx="' + (x - 6) + '" cy="' + y + '" r="2.4" fill="#1a120c"/><circle class="eye" cx="' + (x + 6) + '" cy="' + y + '" r="2.4" fill="#1a120c"/><path d="M' + (x - 4) + ' ' + (y + 5) + 'q4 4 8 0" fill="none" class="ol" stroke-width="2"/>'; }
+  function art(m) {
+    var id = 'rc' + (++uid);
+    if (m === 'cup') return '<svg viewBox="0 0 64 64" aria-hidden="true"><defs><clipPath id="' + id + '"><path d="M15 18h34l-4 34a5 5 0 0 1-5 4H24a5 5 0 0 1-5-4z"/></clipPath></defs>' +
+      '<path d="M48 26c9 0 9 14 0 14" fill="none" class="ol" stroke-width="4"/><path d="M15 18h34l-4 34a5 5 0 0 1-5 4H24a5 5 0 0 1-5-4z" fill="#fff8ec"/>' +
+      '<g clip-path="url(#' + id + ')"><g class="lvl" data-k="fill"><g class="wave"><path d="M0 4q6-5 12 0t12 0 12 0 12 0 12 0 12 0 12 0v60H0z" fill="var(--accent)"/></g>' +
+      '<circle class="bub" cx="26" cy="10" r="2" fill="#fff"/><circle class="bub" cx="36" cy="14" r="1.6" fill="#fff"/><circle class="bub" cx="31" cy="18" r="2.2" fill="#fff"/></g></g>' +
+      '<path d="M15 18h34l-4 34a5 5 0 0 1-5 4H24a5 5 0 0 1-5-4z" fill="none" class="ol"/>' + face(32, 30) + ok() + '</svg>';
+    if (m === 'candle') return '<svg viewBox="0 0 64 64" aria-hidden="true"><ellipse class="lvl" data-k="pool" cx="32" cy="58" rx="16" ry="4" fill="#f6e3c2" stroke="#1a120c" stroke-width="2.5"/>' +
+      '<g class="lvl" data-k="melt"><rect x="20" y="16" width="24" height="42" rx="5" fill="#fff1d6" class="ol"/><path d="M24 17v6a2 2 0 0 0 4 0v-3m8-3v9a2 2 0 0 0 4 0v-9" fill="#fff1d6" class="ol" stroke-width="2"/>' +
+      '<circle class="drip" cx="22" cy="30" r="2" fill="#fff1d6" stroke="#1a120c" stroke-width="1.5"/><circle class="drip" cx="42" cy="34" r="1.8" fill="#fff1d6" stroke="#1a120c" stroke-width="1.5"/>' +
+      face(32, 36) + '<path d="M32 16v-4" class="ol" stroke-width="2"/><path class="flame" d="M32 2c5 6 6 9 0 12-6-3-5-6 0-12z" fill="#ffb02e" stroke="#1a120c" stroke-width="2"/></g>' + ok() + '</svg>';
+    if (m === 'snow') return '<svg viewBox="0 0 64 64" aria-hidden="true"><ellipse class="lvl" data-k="pool" cx="32" cy="59" rx="18" ry="4" fill="#bfe3ff" stroke="#1a120c" stroke-width="2.5"/>' +
+      '<g class="lvl" data-k="melt"><g class="wob"><circle cx="32" cy="45" r="13" fill="#fff" class="ol"/><circle cx="32" cy="24" r="10" fill="#fff" class="ol"/>' +
+      '<path d="M22 10h20v4H22zM26 2h12v8H26z" fill="#2b2b2b" class="ol" stroke-width="2"/><path d="M33 26l9 2-9 2z" fill="#ff8a2a" stroke="#1a120c" stroke-width="1.5" stroke-linejoin="round"/>' +
+      '<circle class="eye" cx="28" cy="21" r="2" fill="#1a120c"/><circle class="eye" cx="36" cy="21" r="2" fill="#1a120c"/><path d="M27 31q5 3 10 0" fill="none" class="ol" stroke-width="2"/>' +
+      '<circle cx="32" cy="42" r="1.8" fill="#1a120c"/><circle cx="32" cy="48" r="1.8" fill="#1a120c"/></g>' +
+      '<circle class="drip" cx="21" cy="40" r="1.8" fill="#bfe3ff" stroke="#1a120c" stroke-width="1.2"/><circle class="drip" cx="43" cy="44" r="1.8" fill="#bfe3ff" stroke="#1a120c" stroke-width="1.2"/></g>' + ok() + '</svg>';
+    return '';
+  }
+  function ok() { return '<g class="ok"><circle cx="52" cy="12" r="9" fill="#3fb950" stroke="#1a120c" stroke-width="2.5"/><path d="M47.5 12l3 3 6-6" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></g>'; }
+  /* p من 0 إلى 1: الكوب يتعبّى، الشمعة ورجل الثلج يذوبون */
+  function paint(root, m, v) {
+    root.querySelectorAll('.lvl').forEach(function (g) {
+      var k = g.getAttribute('data-k');
+      if (k === 'fill') g.style.transform = 'translateY(' + (56 - 38 * v) + 'px)';
+      else if (k === 'melt') { g.style.transformOrigin = '50% 100%'; g.style.transform = 'scale(' + (1 + .18 * v) + ',' + (1 - .55 * v) + ')'; }
+      else if (k === 'pool') { g.style.transformOrigin = '50% 50%'; g.style.transform = 'scale(' + (.25 + .95 * v) + ',' + (.6 + .5 * v) + ')'; }
+    });
+  }
+  function ensure() {
+    var m = mode(); if (m === 'off') return null;
+    if (!box || box.getAttribute('data-m') !== m) {
+      if (box) box.remove();
+      box = el('div', 'rfx'); box.setAttribute('data-m', m); box.setAttribute('role', 'status');
+      var ar = el('span', 'rfxa'); ar.innerHTML = art(m); box.appendChild(ar); box.appendChild(el('span', 'rfxtag', 'يحدّث…'));
+      document.body.appendChild(box); paint(box, m, 0);
+    }
+    return box;
+  }
+  function start() {
+    clearTimeout(hideT); p = 0; var b = ensure(); if (!b) return;
+    b.classList.remove('done'); b.querySelector('.rfxtag').textContent = 'يحدّث…'; paint(b, mode(), 0);
+    requestAnimationFrame(function () { b.classList.add('on'); });
+  }
+  function set(v) { if (!box || mode() === 'off') return; p = Math.max(p, Math.min(.95, v)); paint(box, mode(), p); box.hidden = !$('player').hidden; }
+  function done(changed) {
+    if (!box || !box.classList.contains('on')) return;
+    paint(box, mode(), 1); box.classList.add('done'); box.querySelector('.rfxtag').textContent = changed ? 'وصلت إضافات جديدة' : 'كل شي محدّث';
+    clearTimeout(hideT); hideT = setTimeout(function () { if (box) box.classList.remove('on'); }, 2200);
+  }
+  function demo() {
+    clearTimeout(demoT); start(); var v = 0;
+    (function step() { v += .12; if (v < 1) { set(v); demoT = setTimeout(step, 320); } else done(false); })();
+  }
+  function preview(m) { var d = el('span', 'rfxa' + (m === 'off' ? ' none' : '')); d.innerHTML = art(m); paint(d, m, m === 'cup' ? .6 : .35); return d; }
+  return { modes: MODES, mode: mode, start: start, set: set, done: done, demo: demo, preview: preview, reset: function () { if (box) { box.remove(); box = null; } } };
+})();
 /* ===== تبديل الدبلجة ===== */
 var curDub = null;
 function stopDub() { if (curDub) { try { curDub.pause(); curDub.removeAttribute('src'); curDub.load(); } catch (e) {} curDub = null; } }
@@ -2336,7 +2443,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795162613';
+var APP_V = '1795163017';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
