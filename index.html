@@ -1852,6 +1852,16 @@ function renderSettings(box) {
   ps.appendChild(el('div', 'setlabel', 'مواقيت اليوم · ' + Pray.city()[1] + ' (تقويم أم القرى)')); ps.appendChild(grid);
   ps.appendChild(el('p', 'setnote', 'الرسالة تطلع لثواني والتطبيق مفتوح، حتى وأنت تشاهد. لما تفعّله تطلع لك رسالة تجربة. التغييرات تنحفظ تلقائياً.'));
   box.appendChild(ps);
+  /* التشغيل في الخلفية */
+  if (!IS_TV) {
+    var bs = el('section', 'setsec'); bs.appendChild(el('h3', '', 'التشغيل'));
+    var brow = el('div', 'setrow'); brow.appendChild(el('span', '', 'يكمل الصوت لما تطلع من التطبيق أو تقفل الشاشة'));
+    var bsw = el('button', 'switch'); bsw.type = 'button'; bsw.setAttribute('role', 'switch'); bsw.setAttribute('aria-label', 'تشغيل الصوت في الخلفية'); bsw.setAttribute('aria-checked', String(BG.on()));
+    bsw.onclick = function () { lset('mk_bgaudio', BG.on() ? 'off' : null); bsw.setAttribute('aria-checked', String(BG.on())); };
+    brow.appendChild(bsw); bs.appendChild(brow);
+    bs.appendChild(el('p', 'setnote', 'تقدر توقّف وتكمّل وتقدّم 10 ثواني وتروح للحلقة الجاية من شاشة القفل. لما ترجع للتطبيق، الفيديو يكمل من نفس المكان.'));
+    box.appendChild(bs);
+  }
   /* الإعلانات والفواصل */
   var as = el('section', 'setsec'); as.appendChild(el('h3', '', 'الإعلانات والفواصل'));
   var ar = el('div', 'setrow'); var al = el('label', '', 'إعلان إذا تركت صفحة المسلسل بدون حركة'); al.htmlFor = 'adIdleSel'; ar.appendChild(al);
@@ -1959,7 +1969,7 @@ function driveFrame(v, st, note) {
   if (note) { var n = el('div', 'pnote', note); st.appendChild(n); setTimeout(function () { n.remove(); }, 6000); }
 }
 function stopVideo() {
-  endAd(); stopDub();
+  BG.stop(); endAd(); stopDub();
   clearInterval(nextTimer); nextTimer = 0;
   if (curVideo) { savePos(curVideo.v, curVideo.el); try { curVideo.el.pause(); curVideo.el.removeAttribute('src'); curVideo.el.load(); } catch (e) {} curVideo = null; }
 }
@@ -2026,6 +2036,66 @@ var RFX = (function () {
   function preview(m) { var d = el('span', 'rfxa' + (m === 'off' ? ' none' : '')); d.innerHTML = art(m); paint(d, m, m === 'cup' ? .6 : .35); return d; }
   return { modes: MODES, mode: mode, start: start, set: set, done: done, demo: demo, preview: preview, reset: function () { if (box) { box.remove(); box = null; } } };
 })();
+/* ===== الصوت يكمل لما تطلع من التطبيق أو تقفل الشاشة ===== */
+var BG = (function () {
+  var vd = null, v = null, au = null, userPause = false, saveT = 0;
+  function on() { return !IS_TV && lget('mk_bgaudio') !== 'off'; }
+  function target() { return au || curDub || vd; }
+  /* الجوال وقّف الفيديو لأنك طلعت؟ نكمّل الصوت بعنصر صوت من نفس الملف ومن نفس اللحظة */
+  function handoff() {
+    if (!on() || !vd || au || demo || curDub || !vd.currentSrc) return;
+    var t0 = vd.currentTime, a = new Audio(); a.preload = 'auto'; a.src = vd.currentSrc; au = a;
+    a.addEventListener('loadedmetadata', function () { try { a.currentTime = t0; } catch (e) {} });
+    a.playbackRate = vd.playbackRate || 1; a.volume = vd.volume;
+    a.play().catch(function () { if (au === a) au = null; });
+    a.addEventListener('ended', function () { if (au === a && v) { markDone(v); var p = poses(); delete p[v.id]; jset('pos', p); } });
+    clearInterval(saveT); saveT = setInterval(function () { if (au === a && v) savePos(v, a); }, 15000);
+    meta(); state();
+  }
+  /* رجعت للتطبيق: الفيديو يكمل من حيث وصل الصوت */
+  function back(resume) {
+    clearInterval(saveT);
+    if (au) {
+      var t = au.currentTime, playing = !au.paused && !au.ended;
+      try { au.pause(); au.removeAttribute('src'); au.load(); } catch (e) {}
+      au = null;
+      if (vd) { try { vd.currentTime = t; } catch (e) {} if (resume && playing) vd.play().catch(function () {}); }
+    } else if (resume && vd && curDub && vd.paused && !curDub.paused) { try { vd.currentTime = curDub.currentTime; } catch (e) {} vd.play().catch(function () {}); }
+    state();
+  }
+  function meta() {
+    if (!('mediaSession' in navigator) || !v) return;
+    try {
+      var t = titleOf(v), art = [], p = poster(v) || (t !== v ? poster(t) : null);
+      if (p) { var u = blobs[p.id] || (p.thumb ? p.thumb.replace(/=s\d+$/, '=s512') : ''); if (u) art.push({ src: u, sizes: '512x512' }); }
+      navigator.mediaSession.metadata = new MediaMetadata({ title: t !== v ? dispLong(v) : disp(v), artist: t !== v ? tidyTitle(t.name) : 'home movie', album: 'home movie', artwork: art });
+    } catch (e) {}
+  }
+  function state() { try { if ('mediaSession' in navigator) { var x = target(); navigator.mediaSession.playbackState = x && !x.paused ? 'playing' : 'paused'; } } catch (e) {} }
+  function seek(d) { var x = target(); if (!x) return; try { x.currentTime = Math.max(0, x.currentTime + d); if (x !== vd && vd) vd.currentTime = x.currentTime; } catch (e) {} }
+  if ('mediaSession' in navigator) {
+    var H = {
+      play: function () { userPause = false; if (au) au.play().catch(function () {}); else if (curDub && document.hidden) curDub.play().catch(function () {}); else if (vd) vd.play().catch(function () {}); setTimeout(state, 50); },
+      pause: function () { userPause = true; if (au) au.pause(); if (curDub) curDub.pause(); if (vd) vd.pause(); setTimeout(state, 50); },
+      seekbackward: function () { seek(-10); }, seekforward: function () { seek(10); },
+      previoustrack: function () { if (!$('btnPrev').disabled && !$('btnPrev').hidden) { back(false); $('btnPrev').click(); } },
+      nexttrack: function () { if (!$('btnNext').disabled && !$('btnNext').hidden) { back(false); $('btnNext').click(); } }
+    };
+    Object.keys(H).forEach(function (k) { try { navigator.mediaSession.setActionHandler(k, H[k]); } catch (e) {} });
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) back(true); });
+  return {
+    attach: function (el, ep) {
+      back(false); vd = el; v = ep; userPause = false;
+      el.addEventListener('play', function () { userPause = false; meta(); state(); });
+      el.addEventListener('pause', function () { if (document.hidden && !userPause && !el.ended) handoff(); state(); });
+      meta();
+    },
+    keepDub: function () { return on() && document.hidden && !userPause; },
+    stop: function () { back(false); vd = null; v = null; try { if ('mediaSession' in navigator) { navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = 'none'; } } catch (e) {} },
+    on: on
+  };
+})();
 /* ===== تبديل الدبلجة ===== */
 var curDub = null;
 function stopDub() { if (curDub) { try { curDub.pause(); curDub.removeAttribute('src'); curDub.load(); } catch (e) {} curDub = null; } }
@@ -2049,7 +2119,7 @@ function addDub(st, vd, v) {
       var sync = function () { if (curDub !== au) return; if (Math.abs(au.currentTime - vd.currentTime) > 0.3) au.currentTime = vd.currentTime; };
       au.addEventListener('loadedmetadata', function () { au.currentTime = vd.currentTime; if (!vd.paused) au.play().catch(function () {}); });
       ['play', 'playing'].forEach(function (e) { vd.addEventListener(e, function () { if (curDub === au) { sync(); au.play().catch(function () {}); } }); });
-      ['pause', 'waiting'].forEach(function (e) { vd.addEventListener(e, function () { if (curDub === au) au.pause(); }); });
+      ['pause', 'waiting'].forEach(function (e) { vd.addEventListener(e, function () { if (curDub === au && !BG.keepDub()) au.pause(); }); });
       vd.addEventListener('seeked', sync); vd.addEventListener('ratechange', function () { if (curDub === au) au.playbackRate = vd.playbackRate; });
       vd.addEventListener('volumechange', function () { if (curDub === au) { au.volume = vd.volume; } });
       var iv = setInterval(function () { if (curDub !== au) { clearInterval(iv); return; } if (!vd.paused) sync(); }, 2000);
@@ -2158,6 +2228,7 @@ function startVideo(v, st) {
   vd.src = demo ? 'assets/demo.mp4' : 'stream/' + encodeURIComponent(v.id) + '?t=' + encodeURIComponent(token || '');
   st.appendChild(vd); curVideo = { v: v, el: vd }; if (!IS_TV) addRotate(st);
   if (v.alts && v.alts.length && !demo) addDub(st, vd, v);
+  BG.attach(vd, v);
   var saved = 0, failed = false;
   /* فيديو بدون صوت؟ غالباً الصوت بصيغة ما يفهمها متصفح الجوال (مثل AC3 أو DTS). نقترح مشغّل قوقل لأنه يحوّل الصوت */
   var audioChecked = false;
@@ -2453,7 +2524,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795177831';
+var APP_V = '1795186034';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
