@@ -744,7 +744,7 @@ function crawl(bg) {
       active++;
       loadKids(id, bg).then(function (k) { k.forEach(function (c) { if (nodes[c].folder) q.push(c); }); })
         .catch(function (e) { if (id === rootKey) { if (bg) { refreshing = false; return; } if (noNet(e) && hasDl()) { openOffline(); return; } fatal = noNet(e) ? 'ما فيه اتصال بالإنترنت. اتصل ثم اضغط «تحديث».' : e.message; } else nodes[id].kids = []; })
-        .then(function () { active--; schedule(); next(); });
+        .then(function () { active--; if (!bg) schedule(); next(); });
     })(q.shift());
     if (!active && !q.length) { var done = crawling || refreshing; crawling = false; if (refreshing) { refreshing = false; pruneLib(); } if (done && !fatal) saveLib(); schedule(); }
   }
@@ -1738,6 +1738,9 @@ function render() {
   if ($('library').hidden) return;
   var box = $('content'), keep = {};
   box.querySelectorAll('.row').forEach(function (r, i) { keep[i] = r.scrollLeft; });
+  /* نفس الصفحة؟ نحافظ على مكانك فيها بدل ما ترجع للأعلى */
+  var rkey = view + '|' + cur + '|' + query, same = rkey === lastRKey, y = window.scrollY; lastRKey = rkey;
+  if (same) box.style.minHeight = box.offsetHeight + 'px';
   box.textContent = '';
   var st = $('status'); st.hidden = !crawling; if (crawling) st.textContent = 'جارٍ فهرسة المكتبة… (' + (Object.keys(nodes).length - 1) + ' عنصراً حتى الآن)';
   var c = $('crumbs'); c.textContent = ''; c.hidden = !(view === 'folder' && !query);
@@ -1753,7 +1756,9 @@ function render() {
     renderFolder(box);
   } else renderHome(box);
   box.querySelectorAll('.row').forEach(function (r, i) { if (keep[i]) r.scrollLeft = keep[i]; });
+  if (same) { box.style.minHeight = ''; if (Math.abs(window.scrollY - y) > 2) window.scrollTo(0, y); }
 }
+var lastRKey = '';
 function openSettings() { if (view === 'settings') return; navPush(); view = 'settings'; query = ''; $('q').value = ''; render(); window.scrollTo(0, 0); }
 $('btnSettings').onclick = openSettings;
 function renderSettings(box) {
@@ -2331,7 +2336,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795161833';
+var APP_V = '1795162613';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
