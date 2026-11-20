@@ -2048,7 +2048,7 @@ function addDub(st, vd, v) {
       var iv = setInterval(function () { if (curDub !== au) { clearInterval(iv); return; } if (!vd.paused) sync(); }, 2000);
       au.addEventListener('error', function () { if (curDub === au) { stopDub(); vd.muted = false; toast('ما قدرت أشغّل هذي الدبلجة، رجعت للأساسية.'); mark(''); } });
     }
-    lset(key, o.id ? o.lang : null); mark(o.id);
+    if (!quiet) lset(key, o.id ? o.lang : 'main'); mark(o.id);
     if (!quiet) toast('الصوت: ' + o.label);
   }
   function mark(id) { menu.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-checked', String(x._id === id)); }); b.setAttribute('aria-label', 'الدبلجة: ' + (opts.filter(function (o) { return o.id === id; })[0] || opts[0]).label); }
@@ -2057,7 +2057,9 @@ function addDub(st, vd, v) {
   st.addEventListener('click', function () { menu.hidden = true; });
   wrap.appendChild(b); wrap.appendChild(menu); st.appendChild(wrap);
   /* نرجّع اختيارك السابق لنفس المسلسل */
-  var saved = lget(key), pre = saved && opts.filter(function (o) { return o.lang === saved; })[0];
+  /* ما اخترت قبل؟ إذا فيه دبلجة عربية برا الفيديو نشغّلها تلقائياً */
+  var saved = lget(key), pre = saved && saved !== 'main' && opts.filter(function (o) { return o.lang === saved; })[0];
+  if (!saved) pre = opts.filter(function (o) { return /^(ara|ar)$/.test(o.lang || ''); })[0];
   mark(''); if (pre) choose(pre, true);
 }
 /* ===== الإعلانات والفواصل ===== */
@@ -2444,7 +2446,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795173552';
+var APP_V = '1795176261';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
