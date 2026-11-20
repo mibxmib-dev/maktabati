@@ -98,7 +98,7 @@ button{cursor:pointer}
   #signin.wint .firecv{mix-blend-mode:screen}
   /* بخار القدر والكوب وفقاعات الشوربة */
   #signin.wint .steamcv{display:block;left:61.2%;top:43.6%;width:38.8%;height:14.53%}
-  .tv{left:35.29%;top:46.29%;width:27.34%;height:11.99%;border-radius:6%/9%;clip-path:polygon(0 0,100% 0,100% 100%,97.6% 100%,97.6% 88.5%,95.8% 85.2%,15.4% 85.2%,13.6% 88.5%,13.6% 100%,0 100%)}
+  .tv{left:35.29%;top:46.29%;width:27.34%;height:11.99%;border-radius:6%/9%;clip-path:polygon(0 0,100% 0,100% 100%,99.4% 100%,98.4% 94%,97% 89.5%,94.8% 87.4%,92% 86.6%,20% 86.4%,17.6% 87.2%,16.1% 89%,15.4% 92%,15.2% 100%,0 100%)}
   .neon{font-size:21cqw;margin-top:-6%}
   .tvlight{left:8%;top:34%;width:84%;height:34%}
   #signin{--sw:min(100vw,calc(100vh * .5581));--sw:min(100vw,calc(100svh * .5581));padding-bottom:0}
@@ -120,7 +120,7 @@ body.forcep #signin.wint .fireglow, body.forcep #signin.wint .firecv{display:blo
 body.forcep #signin.wint .fireglow{background:radial-gradient(ellipse at 72% 62%,#ffb347,#ff7a1a 40%,rgba(255,77,0,0) 75%);mix-blend-mode:screen;opacity:.18;animation:fireglow 2.3s infinite}
 body.forcep #signin.wint .firecv{mix-blend-mode:screen}
 body.forcep #signin.wint .steamcv{display:block;left:61.2%;top:43.6%;width:38.8%;height:14.53%}
-body.forcep .tv{left:35.29%;top:46.29%;width:27.34%;height:11.99%;border-radius:6%/9%;clip-path:polygon(0 0,100% 0,100% 100%,97.6% 100%,97.6% 88.5%,95.8% 85.2%,15.4% 85.2%,13.6% 88.5%,13.6% 100%,0 100%)}
+body.forcep .tv{left:35.29%;top:46.29%;width:27.34%;height:11.99%;border-radius:6%/9%;clip-path:polygon(0 0,100% 0,100% 100%,99.4% 100%,98.4% 94%,97% 89.5%,94.8% 87.4%,92% 86.6%,20% 86.4%,17.6% 87.2%,16.1% 89%,15.4% 92%,15.2% 100%,0 100%)}
 body.forcep .neon{font-size:21cqw;margin-top:-6%}
 body.forcep .tvlight{left:8%;top:34%;width:84%;height:34%}
 body.forcep #signin{--sw:min(100vw,calc(100vh * .5581));--sw:min(100vw,calc(100svh * .5581));padding-bottom:0}
@@ -2537,7 +2537,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795191795';
+var APP_V = '1795192038';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
