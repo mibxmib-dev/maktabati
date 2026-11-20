@@ -822,6 +822,7 @@ function dispSeason(v) {
 }
 function dispLong(v) {
   var i = epInfo(v.name), t = titleOf(v);
+  if (t !== v && i && !i.s) { var gs0 = groups(t), g0 = gs0.length > 1 && gs0.filter(function (x) { return x.eps.indexOf(v) >= 0; })[0]; if (g0) return g0.name + ' · الحلقة ' + i.e; }
   if (t !== v && i) return (i.s ? 'الموسم ' + i.s + ' · ' : '') + 'الحلقة ' + i.e;
   if (t !== v && titleKind(t) === 'series') { var gs = groups(t), g = gs.filter(function (x) { return x.eps.indexOf(v) >= 0; })[0]; if (g) return (gs.length > 1 ? g.name + ' · ' : '') + disp(v); }
   return disp(v);
@@ -2524,7 +2525,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795186034';
+var APP_V = '1795190447';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
