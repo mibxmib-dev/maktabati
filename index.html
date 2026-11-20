@@ -134,6 +134,17 @@ body.forcep #signin{background:#0E0606}
 body.forcep #signin::before{content:"";position:fixed;inset:-40px;background:url(assets/scene-winter-p.webp) center/cover no-repeat;filter:blur(28px) brightness(.45) saturate(1.2);z-index:-1;pointer-events:none}
 body.forcep #signin{isolation:isolate}
 body.forcep #signin .scene{-webkit-mask-image:none;mask-image:none;box-shadow:0 0 80px rgba(0,0,0,.7)}
+/* الشاشات العريضة (كمبيوتر وتلفزيون وتابلت بالعرض): المشهد يسار ولوحة الدخول يمين، بدل شكل الجوال */
+body.forcep #signin{flex-direction:row-reverse;align-items:center;justify-content:center;gap:clamp(28px,6vw,120px);padding:3vh 5vw;min-height:100vh;min-height:100svh}
+body.forcep #signin{--sw:calc(92vh * .5581);--sw:calc(92svh * .5581)}
+body.forcep .scene{width:var(--sw);height:auto;border-radius:clamp(14px,1.6vh,28px);box-shadow:0 30px 90px rgba(0,0,0,.75),0 0 0 1px rgba(255,214,150,.12)}
+body.forcep .login{position:relative;top:auto;left:auto;right:auto;margin:0;width:min(46vh * 1.5,44vw);font-size:clamp(16px,2.3vh,30px);gap:1em;text-shadow:none;padding:2.2em 2em;border-radius:1.4em;background:rgba(22,12,8,.62);border:1px solid rgba(255,214,150,.16);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);box-shadow:0 24px 70px rgba(0,0,0,.55)}
+body.forcep .login h1{position:static;width:auto;height:auto;overflow:visible;clip:auto;margin:0;text-align:center;font-family:'Tilt Neon',var(--font);font-weight:400;font-size:2.6em;line-height:1.1;color:#FFD98C;letter-spacing:.02em;text-shadow:0 0 .12em #fff3c4,0 0 .4em #ffbf55,0 0 .9em rgba(255,138,30,.6)}
+body.forcep .login .lead{font-size:1.1em;line-height:1.6;color:#f3e6d6}
+body.forcep .login .btn{font-size:1em;min-height:3.2em;border-radius:.8em}
+body.forcep .login .note{font-size:.78em}
+body.forcep .login details{font-size:.85em}
+@media (max-aspect-ratio:5/4){body.forcep #signin{flex-direction:column;gap:3vh}body.forcep #signin{--sw:calc(60vh * .5581)}body.forcep .login{width:min(560px,86vw)}}
 
 
 /* الأزرار والنماذج */
@@ -2525,7 +2536,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795190447';
+var APP_V = '1795190944';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
@@ -2566,8 +2577,10 @@ function tvZoom(next) {
   requestAnimationFrame(function () {
     var s = scene.getBoundingClientRect(), r = tv.getBoundingClientRect();
     scene.style.transformOrigin = ((r.left + r.width / 2 - s.left) / s.width * 100) + '% ' + ((r.top + r.height / 2 - s.top) / s.height * 100) + '%';
-    var k = Math.max(s.width / r.width, s.height / r.height) * 1.25;
-    setTimeout(function () { scene.style.transform = 'scale(' + k + ')'; sc.classList.add('zoomin'); }, 350);
+    /* نكبّر حول التلفزيون ونحطه في نص الشاشة، حتى لو المشهد على جنب (الشاشات العريضة) */
+    var k = Math.max(innerWidth / r.width, innerHeight / r.height, s.width / r.width, s.height / r.height) * 1.15;
+    var dx = innerWidth / 2 - (r.left + r.width / 2), dy = innerHeight / 2 - (r.top + r.height / 2);
+    setTimeout(function () { scene.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(' + k + ')'; sc.classList.add('zoomin'); }, 350);
     setTimeout(function () { sc.classList.add('zoomout'); }, 2350);
     setTimeout(function () {
       next(); var lib = $('library'); lib.classList.add('fadein');
