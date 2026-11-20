@@ -393,6 +393,8 @@ button.pseries[hidden]{display:none}
 .rfxopts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .rfxopt{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border-radius:14px;border:2px solid var(--line);background:transparent;color:var(--text);font:inherit;font-size:13px;cursor:pointer;min-height:44px}
 .rfxopt[aria-checked="true"]{border-color:var(--accent)}
+.tapseek{position:absolute;top:50%;transform:translateY(-50%);z-index:7;pointer-events:none;background:rgba(0,0,0,.6);color:#fff;font-weight:700;font-size:16px;padding:10px 16px;border-radius:999px;direction:rtl}
+.tapseek.fwd{right:8%}.tapseek.back{left:8%}
 .dubwrap{position:absolute;top:10px;right:122px;z-index:7}
 .dubbtn{position:static;width:auto;gap:6px;padding:0 10px 0 12px;font:inherit;font-size:15px;font-weight:700}
 .dublbl{white-space:nowrap}
@@ -2066,6 +2068,27 @@ var RFX = (function () {
   function preview(m) { var d = el('span', 'rfxa' + (m === 'off' ? ' none' : '')); d.innerHTML = art(m); paint(d, m, m === 'cup' ? .6 : .35); return d; }
   return { modes: MODES, mode: mode, start: start, set: set, done: done, demo: demo, preview: preview, reset: function () { if (box) { box.remove(); box = null; } } };
 })();
+/* ===== ضغطتين على يمين الفيديو = قدّام 10 ثواني، وعلى يساره = ورا 10 ثواني ===== */
+function addTapSeek(st, vd) {
+  var last = 0, lastSide = '', sum = 0, bub = el('div', 'tapseek'); bub.hidden = true; st.appendChild(bub);
+  var hideT = 0;
+  vd.addEventListener('pointerup', function (e) {
+    if (e.pointerType === 'mouse') return;
+    var r = vd.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    if (y > r.height - 70) return; /* شريط التحكم تحت */
+    var side = x < r.width * .4 ? 'back' : x > r.width * .6 ? 'fwd' : '';
+    var now = Date.now();
+    if (side && side === lastSide && now - last < 350) {
+      var d = side === 'fwd' ? 10 : -10;
+      try { vd.currentTime = Math.max(0, Math.min((vd.duration || 1e9) - .5, vd.currentTime + d)); } catch (er) {}
+      sum = (bub.hidden || bub.dataset.side !== side) ? d : sum + d;
+      bub.dataset.side = side; bub.className = 'tapseek ' + side; bub.textContent = (side === 'fwd' ? '⏩ ' : '⏪ ') + Math.abs(sum) + ' ثانية';
+      bub.hidden = false; clearTimeout(hideT); hideT = setTimeout(function () { bub.hidden = true; sum = 0; }, 800);
+      e.preventDefault(); last = now; return;
+    }
+    last = now; lastSide = side;
+  });
+}
 /* ===== الصوت يكمل لما تطلع من التطبيق أو تقفل الشاشة ===== */
 var BG = (function () {
   var vd = null, v = null, au = null, userPause = false, saveT = 0;
@@ -2259,6 +2282,7 @@ function startVideo(v, st) {
   st.appendChild(vd); curVideo = { v: v, el: vd }; if (!IS_TV) addRotate(st);
   if (v.alts && v.alts.length && !demo) addDub(st, vd, v);
   BG.attach(vd, v);
+  if (!IS_TV) addTapSeek(st, vd);
   var saved = 0, failed = false;
   /* فيديو بدون صوت؟ غالباً الصوت بصيغة ما يفهمها متصفح الجوال (مثل AC3 أو DTS). نقترح مشغّل قوقل لأنه يحوّل الصوت */
   var audioChecked = false;
@@ -2530,6 +2554,10 @@ var Intro = (function () {
   }
   if (!$('signin').hidden) setTimeout(start, 700);
   $('btnSkip').onclick = function (e) { e.stopPropagation(); finish(); };
+  /* ضغطة على أي مكان في الشاشة (أو زر في ريموت التلفزيون) تتخطى المقدمة */
+  function skipAny(e) { if (sc.hidden || sc.classList.contains('done') || sc.classList.contains('zooming')) return; if (e && e.target && e.target.closest && e.target.closest('.login,#btnLayout')) return; finish(); }
+  sc.addEventListener('click', skipAny);
+  document.addEventListener('keydown', function (e) { if (/^(Enter| |Escape|ArrowUp|ArrowDown|ArrowLeft|ArrowRight)$/.test(e.key)) skipAny(e); });
   return { stop: function () {}, finish: finish };
 })();
 
@@ -2556,7 +2584,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795193300';
+var APP_V = '1795193538';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
