@@ -147,16 +147,18 @@ body.forcep:not(.wsplit) #signin .login .btn:not(.primary){background:rgba(30,18
 body.forcep:not(.wsplit) #signin .login .note,body.forcep:not(.wsplit) #signin .login .msg,body.forcep:not(.wsplit) #signin .login details{grid-column:1 / -1;text-align:center}
 body.forcep:not(.wsplit) #signin .login .note{font-size:.75em}
 /* الشاشات العريضة (كمبيوتر وتلفزيون وتابلت بالعرض): المشهد يسار ولوحة الدخول يمين، بدل شكل الجوال */
-body.forcep.wsplit #signin{flex-direction:row-reverse;align-items:center;justify-content:center;gap:clamp(28px,6vw,120px);padding:3vh 5vw;min-height:100vh;min-height:100svh}
-body.forcep.wsplit #signin{--sw:calc(92vh * .5581);--sw:calc(92svh * .5581)}
-body.forcep.wsplit .scene{width:var(--sw);height:auto;border-radius:clamp(14px,1.6vh,28px);box-shadow:0 30px 90px rgba(0,0,0,.75),0 0 0 1px rgba(255,214,150,.12)}
-body.forcep.wsplit .login{position:relative;top:auto;left:auto;right:auto;margin:0;width:min(46vh * 1.5,44vw);font-size:clamp(16px,2.3vh,30px);gap:1em;text-shadow:none;padding:2.2em 2em;border-radius:1.4em;background:rgba(22,12,8,.62);border:1px solid rgba(255,214,150,.16);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);box-shadow:0 24px 70px rgba(0,0,0,.55)}
+body.forcep.wsplit #signin{display:block;position:relative;height:100vh;height:100svh;min-height:0;padding:0;overflow:hidden}
+body.forcep.wsplit #signin{--sw:58vw}
+body.forcep.wsplit .scene{position:absolute;left:0;width:58vw;height:auto;top:min(calc(2vh - 58vw * 1.7917 * .29),calc(96vh - 58vw * 1.7917 * .583));border-radius:0;box-shadow:none;-webkit-mask-image:linear-gradient(to right,#000 82%,transparent);mask-image:linear-gradient(to right,#000 82%,transparent)}
+body.forcep.wsplit #signin.zooming .scene{-webkit-mask-image:none;mask-image:none}
+body.forcep.wsplit .login{position:absolute;z-index:6;top:50%;right:4vw;left:auto;margin:0;transform:translateY(-50%);width:min(46vh * 1.5,36vw);font-size:clamp(16px,2.3vh,30px);gap:1em;text-shadow:none;padding:2.2em 2em;border-radius:1.4em;background:rgba(22,12,8,.62);border:1px solid rgba(255,214,150,.16);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);box-shadow:0 24px 70px rgba(0,0,0,.55)}
+body.forcep.wsplit #signin.done .login{transform:translateY(-50%)}
 body.forcep.wsplit .login h1{position:static;width:auto;height:auto;overflow:visible;clip:auto;margin:0;text-align:center;font-family:'Tilt Neon',var(--font);font-weight:400;font-size:2.6em;line-height:1.1;color:#FFD98C;letter-spacing:.02em;text-shadow:0 0 .12em #fff3c4,0 0 .4em #ffbf55,0 0 .9em rgba(255,138,30,.6)}
 body.forcep.wsplit .login .lead{font-size:1.1em;line-height:1.6;color:#f3e6d6}
 body.forcep.wsplit .login .btn{font-size:1em;min-height:3.2em;border-radius:.8em}
 body.forcep.wsplit .login .note{font-size:.78em}
 body.forcep.wsplit .login details{font-size:.85em}
-@media (max-aspect-ratio:5/4){body.forcep.wsplit #signin{flex-direction:column;gap:3vh}body.forcep.wsplit #signin{--sw:calc(60vh * .5581)}body.forcep.wsplit .login{width:min(560px,86vw)}}
+@media (max-aspect-ratio:5/4){body.forcep.wsplit #signin{--sw:100vw}body.forcep.wsplit .scene{width:100vw;top:min(calc(2vh - 100vw * 1.7917 * .29),calc(60vh - 100vw * 1.7917 * .583));-webkit-mask-image:linear-gradient(#000 70%,transparent);mask-image:linear-gradient(#000 70%,transparent)}body.forcep.wsplit .login{top:auto;bottom:3vh;right:0;left:0;margin:0 auto;transform:none;width:min(560px,86vw)}body.forcep.wsplit #signin.done .login{transform:none}}
 #signin #btnLayout{position:fixed;left:16px;right:auto;top:auto;bottom:16px;height:auto;z-index:8}
 body:not(.forcep) #btnLayout,#signin:not(.done) #btnLayout{display:none!important}
 body.forcep #signin .chip{font-size:clamp(13px,1.6vh,20px);min-height:clamp(40px,4.4vh,56px)}
@@ -2554,7 +2556,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795192692';
+var APP_V = '1795193300';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
