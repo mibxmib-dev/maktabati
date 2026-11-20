@@ -564,7 +564,7 @@ function epInfo(name) {
    نقطع كل شي من أول علامة جودة/مصدر، ونشيل اسم فرقة الرفع في الآخر */
 var JUNK = /^(\d{3,4}p|4k|2160p|uhd|hdr\d*|sdr|web|web-?dl|webrip|web-?rip|hdtv|hdrip|bluray|blu-?ray|brrip|bdrip|dvdrip|dvdscr|hdcam|remux|x26[45]|h26[45]|h|hevc|avc|xvid|divx|aac\d*|ac3|eac3|e-?ac-?3|ddp?\d*|dts|truehd|atmos|flac|mp3|opus|10bit|8bit|dsnp|nf|amzn|hmax|atvp|hulu|pcok|pmtp|stan|crav|osn|shahid|repack|proper|internal|multi|dual|dubbed|subbed|arabic|ara|eng|esub|720|1080|480|576)$/i;
 function tidy(t) {
-  var parts = t.replace(/\[[^\]]*\]|\([^)]*(?:p|rip|web|x26\d|hevc)[^)]*\)/gi, ' ').split(/[._\s]+/), out = [];
+  var parts = t.replace(/^\s*(copy of|نسخة من|نسخة)\s+/i, '').replace(/\[[^\]]*\]|\([^)]*(?:p|rip|web|x26\d|hevc)[^)]*\)/gi, ' ').split(/[._\s]+/), out = [];
   for (var i = 0; i < parts.length; i++) {
     var w = parts[i]; if (!w) continue;
     var core = w.replace(/-[A-Za-z0-9]+$/, '');
@@ -796,7 +796,16 @@ function dispLong(v) {
 /* ===== التصنيف: شركة ← مسلسلات/أفلام ← عمل ← مواسم ← حلقات ===== */
 var SERIES_RE = /^(مسلسلات|series|shows|tv shows)$/, MOVIE_RE = /^(افلام|movies|films)$/;
 var CAT = /^(مسلسلات|افلام|عربي|انجليزي|اجنبي|تركي|كوري|هندي|ياباني|انمي|كرتون|اطفال|series|shows|movies|films|arabic|english|foreign|turkish|korean|anime|kids|cartoon)$/;
-var SEASON = /(season|موسم|جزء|part|^s\d+$)/;
+var SEASON = /(season|موسم|جزء|part|^s\d+(\s|$))/;
+/* اسم الموسم للعرض: «S01» ← «الموسم 1»، و«S01 ENG» ← «الموسم 1 · إنجليزي» */
+var SLANG = { eng: 'إنجليزي', en: 'إنجليزي', english: 'إنجليزي', 'انجليزي': 'إنجليزي', ara: 'عربي', ar: 'عربي', arabic: 'عربي', 'عربي': 'عربي', fre: 'فرنسي', fr: 'فرنسي', french: 'فرنسي', jpn: 'ياباني', japanese: 'ياباني', tur: 'تركي', turkish: 'تركي' };
+function seasonNo(n) { var m = norm(n).match(/^(?:s|season|الموسم|موسم)\s*0*(\d{1,2})(?:\s|$)/); return m ? +m[1] : 0; }
+function seasonLabel(n) {
+  var t = norm(n), m = t.match(/^(?:s|season|الموسم|موسم)\s*0*(\d{1,2})(?:\s+(.*))?$/);
+  if (!m) return n;
+  var rest = (m[2] || '').trim(), extra = rest ? (SLANG[rest] || rest.replace(/^\(|\)$/g, '')) : '';
+  return 'الموسم ' + m[1] + (extra ? ' · ' + extra : '');
+}
 function bucketKind(f) { var t = norm(f.name); return SERIES_RE.test(t) ? 'series' : MOVIE_RE.test(t) ? 'movie' : ''; }
 /* مجلد عمل (مسلسل أو فيلم) أم مجلد تصنيف (شركة أو نوع أو لغة)؟ */
 /* يوتيوب: قناة يوتيوب ← قنوات صنّاع المحتوى ← أقسام (فلوقات، تحديات…) ← فيديوهات مستقلة */
@@ -836,7 +845,9 @@ function epSort(a, b) { var x = epInfo(a.name), y = epInfo(b.name); return x && 
 function groups(t) {
   if (!t.folder) return [{ id: t.id, name: '', eps: [t] }];
   var k = kids(t.id), out = [];
-  k.filter(function (c) { return c.folder; }).forEach(function (c) { var e = kids(c.id).filter(function (v) { return !v.folder; }).sort(epSort); if (e.length) out.push({ id: c.id, name: c.name, eps: e }); });
+  k.filter(function (c) { return c.folder; }).forEach(function (c) { var e = kids(c.id).filter(function (v) { return !v.folder; }).sort(epSort); if (e.length) out.push({ id: c.id, name: seasonLabel(c.name), raw: c.name, eps: e }); });
+  /* ترتيب المواسم بالرقم، والنسخة الأساسية قبل نسخة اللغة الثانية */
+  out.sort(function (a, b) { var x = seasonNo(a.raw), y = seasonNo(b.raw); if (x && y && x !== y) return x - y; if (x && y) return norm(a.raw).length - norm(b.raw).length; return 0; });
   var loose = k.filter(function (c) { return !c.folder; }).sort(epSort);
   if (loose.length && !out.length) {
     /* حلقات من أكثر من موسم في مجلد واحد: نقسمها حسب رقم الموسم في الاسم */
@@ -2320,7 +2331,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795108229';
+var APP_V = '1795161833';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
