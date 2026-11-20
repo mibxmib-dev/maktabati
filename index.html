@@ -366,7 +366,8 @@ button.pseries[hidden]{display:none}
 .rfxopt{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border-radius:14px;border:2px solid var(--line);background:transparent;color:var(--text);font:inherit;font-size:13px;cursor:pointer;min-height:44px}
 .rfxopt[aria-checked="true"]{border-color:var(--accent)}
 .dubwrap{position:absolute;top:10px;right:122px;z-index:7}
-.dubbtn{position:static}
+.dubbtn{position:static;width:auto;gap:6px;padding:0 10px 0 12px;font:inherit;font-size:15px;font-weight:700}
+.dublbl{white-space:nowrap}
 .dubmenu{position:absolute;top:56px;right:0;min-width:170px;background:var(--raised);border:1px solid var(--line);border-radius:12px;padding:6px;display:flex;flex-direction:column;gap:4px;box-shadow:0 12px 30px rgba(0,0,0,.6)}
 .dubmenu[hidden]{display:none}
 .dubmenu button{min-height:42px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--text);font:inherit;font-size:15px;text-align:start;padding:0 12px;cursor:pointer}
@@ -738,7 +739,7 @@ function loadKids(id, force) {
   return nd.loading;
 }
 /* الدبلجة الثانية: ملف صوت بجانب الحلقة باسمها + رمز اللغة، مثل «Pooh S01E01.eng.m4a» */
-var LANGS = { ara: 'العربية', ar: 'العربية', eng: 'English', en: 'English', fre: 'Français', fra: 'Français', fr: 'Français', spa: 'Español', es: 'Español', ger: 'Deutsch', deu: 'Deutsch', jpn: '日本語', ja: '日本語', tur: 'Türkçe', tr: 'Türkçe', ita: 'Italiano', kor: '한국어', chi: '中文', zho: '中文', hin: 'हिन्दी', rus: 'Русский', por: 'Português', und: 'صوت إضافي' };
+var LANGS = { ara: 'عربي', ar: 'عربي', eng: 'English', en: 'English', fre: 'Français', fra: 'Français', fr: 'Français', spa: 'Español', es: 'Español', ger: 'Deutsch', deu: 'Deutsch', jpn: '日本語', ja: '日本語', tur: 'Türkçe', tr: 'Türkçe', ita: 'Italiano', kor: '한국어', chi: '中文', zho: '中文', hin: 'हिन्दी', rus: 'Русский', por: 'Português', und: 'صوت إضافي' };
 function langName(c) { c = (c || '').toLowerCase(); var m = c.match(/^(?:a|track)(\d+)$/); return LANGS[c] || (m ? 'دبلجة ' + m[1] : 'صوت ' + c); }
 function attachDubs(ids, auds) {
   if (!auds.length) return;
@@ -2031,9 +2032,15 @@ function stopDub() { if (curDub) { try { curDub.pause(); curDub.removeAttribute(
 function addDub(st, vd, v) {
   var tq = titleOf(v), key = 'dub:' + (tq ? tq.id : v.id);
   var wrap = el('div', 'dubwrap'), b = el('button', 'rotbtn dubbtn'); b.type = 'button'; b.setAttribute('aria-haspopup', 'true');
-  b.appendChild(icon('M3 5h12M9 3v2M5 5c0 4 3 7 7 8M13 5c-1 4-4 7-8 8M14 21l4-9 4 9M15.5 18h5', 22));
-  var menu = el('div', 'dubmenu'); menu.hidden = true; menu.setAttribute('role', 'radiogroup'); menu.setAttribute('aria-label', 'الدبلجة');
-  var opts = [{ id: '', label: 'الدبلجة الأساسية' }].concat(v.alts.map(function (a) { return { id: a.id, label: langName(a.lang), lang: a.lang }; }));
+  b.appendChild(icon('M3 5h12M9 3v2M5 5c0 4 3 7 7 8M13 5c-1 4-4 7-8 8M14 21l4-9 4 9M15.5 18h5', 20));
+  var blbl = el('span', 'dublbl', ''); b.appendChild(blbl); b.appendChild(icon('M6 9l6 6 6-6', 16));
+  var menu = el('div', 'dubmenu'); menu.hidden = true; menu.setAttribute('role', 'radiogroup'); menu.setAttribute('aria-label', 'لغة الصوت');
+  /* لغة الصوت اللي داخل الفيديو: إذا أضفت ملف عربي، فاللي داخل الفيديو إنجليزي، والعكس */
+  var isAr = function (l) { return /^(ara|ar)$/.test(l || ''); }, isEn = function (l) { return /^(eng|en)$/.test(l || ''); };
+  var hasAr = v.alts.some(function (a) { return isAr(a.lang); }), hasEn = v.alts.some(function (a) { return isEn(a.lang); });
+  var mainLang = hasAr && hasEn ? '' : hasAr ? 'eng' : 'ara';
+  var opts = (mainLang ? [{ id: '', lang: mainLang, label: langName(mainLang) }] : []).concat(v.alts.map(function (a) { return { id: a.id, label: langName(a.lang), lang: a.lang }; }));
+  opts.sort(function (x, y) { return (isAr(y.lang) ? 1 : 0) - (isAr(x.lang) ? 1 : 0); });
   function choose(o, quiet) {
     stopDub(); vd.muted = false;
     if (o.id) {
@@ -2046,21 +2053,21 @@ function addDub(st, vd, v) {
       vd.addEventListener('seeked', sync); vd.addEventListener('ratechange', function () { if (curDub === au) au.playbackRate = vd.playbackRate; });
       vd.addEventListener('volumechange', function () { if (curDub === au) { au.volume = vd.volume; } });
       var iv = setInterval(function () { if (curDub !== au) { clearInterval(iv); return; } if (!vd.paused) sync(); }, 2000);
-      au.addEventListener('error', function () { if (curDub === au) { stopDub(); vd.muted = false; toast('ما قدرت أشغّل هذي الدبلجة، رجعت للأساسية.'); mark(''); } });
+      au.addEventListener('error', function () { if (curDub === au) { stopDub(); vd.muted = false; var m0 = opts.filter(function (x) { return x.id === ''; })[0]; toast('ما قدرت أشغّل صوت ' + o.label + (m0 ? '، رجعت لـ ' + m0.label : '') + '.'); mark(''); } });
     }
-    if (!quiet) lset(key, o.id ? o.lang : 'main'); mark(o.id);
+    if (!quiet) lset(key, o.lang || 'main'); mark(o.id);
     if (!quiet) toast('الصوت: ' + o.label);
   }
-  function mark(id) { menu.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-checked', String(x._id === id)); }); b.setAttribute('aria-label', 'الدبلجة: ' + (opts.filter(function (o) { return o.id === id; })[0] || opts[0]).label); }
+  function mark(id) { var o = opts.filter(function (x) { return x.id === id; })[0] || opts[0]; menu.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-checked', String(x._id === o.id)); }); blbl.textContent = o.label; b.setAttribute('aria-label', 'لغة الصوت: ' + o.label); }
   opts.forEach(function (o) { var x = el('button', '', o.label); x.type = 'button'; x.setAttribute('role', 'radio'); x._id = o.id; x.onclick = function (e) { e.stopPropagation(); menu.hidden = true; choose(o); }; menu.appendChild(x); });
   b.onclick = function (e) { e.stopPropagation(); menu.hidden = !menu.hidden; };
   st.addEventListener('click', function () { menu.hidden = true; });
   wrap.appendChild(b); wrap.appendChild(menu); st.appendChild(wrap);
   /* نرجّع اختيارك السابق لنفس المسلسل */
   /* ما اخترت قبل؟ إذا فيه دبلجة عربية برا الفيديو نشغّلها تلقائياً */
-  var saved = lget(key), pre = saved && saved !== 'main' && opts.filter(function (o) { return o.lang === saved; })[0];
-  if (!saved) pre = opts.filter(function (o) { return /^(ara|ar)$/.test(o.lang || ''); })[0];
-  mark(''); if (pre) choose(pre, true);
+  var saved = lget(key), pre = saved && opts.filter(function (o) { return o.lang === saved || (saved === 'main' && o.id === ''); })[0];
+  if (!pre) pre = opts.filter(function (o) { return isAr(o.lang); })[0] || opts[0];
+  mark(pre.id); if (pre.id) choose(pre, true);
 }
 /* ===== الإعلانات والفواصل ===== */
 function adsFor(n) { var x = n; while (x && x.id !== rootKey) { if (x.ads && x.ads.length) return x.ads.map(function (id) { return nodes[id]; }).filter(Boolean); x = nodes[x.parent]; } return []; }
@@ -2446,7 +2453,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795176261';
+var APP_V = '1795177530';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
