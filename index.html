@@ -724,7 +724,7 @@ function loadKids(id, force) {
     });
   }
   /* مجلد اسمه «صور» داخل المسلسل: صوره تنضم لصور المسلسل وما يطلع كموسم */
-  var PICS = /^(صور|الصور|صور الحلقات|images|pictures|thumbs|thumbnails)$/i;
+  var PICS = /^(صور.*|الصور.*|لقطات.*|لقطة|اغلفة|أغلفة|غلاف|images?|pictures?|pics|photos?|thumbs?|thumbnails?|screenshots?|screen ?shots?|screens|covers?|posters?|artwork|art)$/i;
   nd.loading = page().then(function (a) {
     var picDirs = a.filter(function (k) { return nodes[k] && nodes[k].folder && PICS.test(nodes[k].name.trim()); });
     /* مجلد اسمه «إعلان» داخل المسلسل: فيديوهاته إعلانات وفواصل، وما يطلع كموسم */
@@ -856,7 +856,8 @@ function isTitle(f) {
   var k = kids(f.id);
   if (k.some(function (c) { return c.folder && (bucketKind(c) || CAT.test(norm(c.name))); })) return false;
   /* مجلد فيه أعمال كاملة (مثل شركة بدون مجلدي مسلسلات/أفلام) هو تصنيف وليس عملاً */
-  if (k.some(function (c) { return c.folder && c.kids && !SEASON.test(norm(c.name)) && isTitle(c); })) return false;
+  /* (مجلد فيه صور بس، بلا فيديوهات، ما يُحسب عمل) */
+  if (k.some(function (c) { return c.folder && c.kids && c.kids.length && !SEASON.test(norm(c.name)) && isTitle(c); })) return false;
   if (!k.length || (f.images && f.images.length)) return true;
   if (k.some(function (c) { return !c.folder; })) return true;
   return k.some(function (c) { return SEASON.test(norm(c.name)); });
@@ -2443,7 +2444,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795163017';
+var APP_V = '1795173552';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
