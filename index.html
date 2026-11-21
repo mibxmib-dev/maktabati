@@ -2177,14 +2177,22 @@ function addDub(st, vd, v) {
     if (o.id) {
       var au = new Audio(); au.preload = 'auto'; au.src = 'stream/' + encodeURIComponent(o.id) + '?t=' + encodeURIComponent(token || '');
       curDub = au; vd.muted = true;
-      var sync = function () { if (curDub !== au) return; if (Math.abs(au.currentTime - vd.currentTime) > 0.3) au.currentTime = vd.currentTime; };
+      /* المزامنة: فرق كبير (بعد تقديم أو تقطيع) = نقفز مرة وحدة؛ فرق صغير = نسرّع أو نبطّئ الصوت شوي لين يلحق، بدون قفزات تسبب تقطيع وتكرار */
+      var hardSync = function () { if (curDub !== au) return; if (Math.abs(au.currentTime - vd.currentTime) > 0.25) au.currentTime = vd.currentTime; au.playbackRate = vd.playbackRate || 1; };
+      var sync = function () {
+        if (curDub !== au || au.readyState < 2) return;
+        var d = au.currentTime - vd.currentTime, base = vd.playbackRate || 1;
+        if (Math.abs(d) > 1.2) { au.currentTime = vd.currentTime; au.playbackRate = base; }
+        else if (Math.abs(d) > 0.12) au.playbackRate = base * (d > 0 ? 0.96 : 1.04);
+        else au.playbackRate = base;
+      };
       au.addEventListener('loadedmetadata', function () { au.currentTime = vd.currentTime; if (!vd.paused) au.play().catch(function () {}); });
       ['play', 'playing'].forEach(function (e) { vd.addEventListener(e, function () { if (curDub === au) { sync(); au.play().catch(function () {}); } }); });
       ['pause', 'waiting'].forEach(function (e) { vd.addEventListener(e, function () { if (curDub === au && !BG.keepDub()) au.pause(); }); });
-      vd.addEventListener('seeked', sync); vd.addEventListener('ratechange', function () { if (curDub === au) au.playbackRate = vd.playbackRate; });
+      vd.addEventListener('seeked', hardSync); vd.addEventListener('ratechange', function () { if (curDub === au) au.playbackRate = vd.playbackRate; });
       /* زر الصوت في المشغّل يتحكم بالدبلجة: لو أحد فك كتم الفيديو والدبلجة شغالة، نرجّع الكتم ونبدّل صوت الدبلجة بدال ما يطلع صوتين */
       vd.addEventListener('volumechange', function () { if (curDub !== au) return; au.volume = vd.volume; if (!vd.muted) { vd.muted = true; au.muted = !au.muted; } });
-      var iv = setInterval(function () { if (curDub !== au) { clearInterval(iv); return; } if (!vd.paused) sync(); }, 2000);
+      var iv = setInterval(function () { if (curDub !== au) { clearInterval(iv); return; } if (!vd.paused && !au.paused) sync(); }, 700);
       au.addEventListener('error', function () { if (curDub === au) { stopDub(); vd.muted = false; var m0 = opts.filter(function (x) { return x.id === ''; })[0]; toast('ما قدرت أشغّل صوت ' + o.label + (m0 ? '، رجعت لـ ' + m0.label : '') + '.'); mark(''); } });
     }
     if (!quiet) lset(key, o.lang || 'main'); mark(o.id);
@@ -2598,7 +2606,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795261459';
+var APP_V = '1795261826';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
