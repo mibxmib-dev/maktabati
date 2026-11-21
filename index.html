@@ -401,6 +401,7 @@ button.pseries[hidden]{display:none}
 .dubmenu{position:absolute;top:56px;right:0;min-width:170px;background:var(--raised);border:1px solid var(--line);border-radius:12px;padding:6px;display:flex;flex-direction:column;gap:4px;box-shadow:0 12px 30px rgba(0,0,0,.6)}
 .dubmenu[hidden]{display:none}
 .dubmenu button{min-height:42px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--text);font:inherit;font-size:15px;text-align:start;padding:0 12px;cursor:pointer}
+.dubmenu .dubswap{border-top:1px solid var(--line)!important;border-radius:0 0 8px 8px;font-size:13px!important;color:var(--muted)!important;margin-top:2px}
 .dubmenu button[aria-checked="true"]{background:var(--accent);color:var(--on-accent);font-weight:700}
 #player.focus .pbar,#player.focus .pback,#player.focus .pctl,#player.focus .pstrip{display:none}
 .rotbtn:focus-visible{outline:2px solid var(--accent);opacity:1}
@@ -2163,9 +2164,13 @@ function addDub(st, vd, v) {
   var menu = el('div', 'dubmenu'); menu.hidden = true; menu.setAttribute('role', 'radiogroup'); menu.setAttribute('aria-label', 'لغة الصوت');
   /* لغة الصوت اللي داخل الفيديو: إذا أضفت ملف عربي، فاللي داخل الفيديو إنجليزي، والعكس */
   var isAr = function (l) { return /^(ara|ar)$/.test(l || ''); }, isEn = function (l) { return /^(eng|en)$/.test(l || ''); };
-  var hasAr = v.alts.some(function (a) { return isAr(a.lang); }), hasEn = v.alts.some(function (a) { return isEn(a.lang); });
+  /* ملف صوت ما يُعرف لغته (مثل .a2.m4a): نفترض إن داخل الفيديو عربي، وإذا طلع العكس تبدّل التسمية من القائمة وتنحفظ للمسلسل */
+  var swapKey = 'dubswap:' + (tq ? tq.id : v.id), unk = v.alts.filter(function (a) { return /^(a|track)\d+$/.test(a.lang); });
+  var canSwap = unk.length === 1 && !v.alts.some(function (a) { return isAr(a.lang); }), swapped = canSwap && lget(swapKey) === '1';
+  var alts = v.alts.map(function (a) { return { id: a.id, lang: swapped && a === unk[0] ? 'ara' : a.lang }; });
+  var hasAr = alts.some(function (a) { return isAr(a.lang); }), hasEn = alts.some(function (a) { return isEn(a.lang); });
   var mainLang = hasAr && hasEn ? '' : hasAr ? 'eng' : 'ara';
-  var opts = (mainLang ? [{ id: '', lang: mainLang, label: langName(mainLang) }] : []).concat(v.alts.map(function (a) { return { id: a.id, label: langName(a.lang), lang: a.lang }; }));
+  var opts = (mainLang ? [{ id: '', lang: mainLang, label: langName(mainLang) }] : []).concat(alts.map(function (a) { return { id: a.id, label: langName(a.lang), lang: a.lang }; }));
   opts.sort(function (x, y) { return (isAr(y.lang) ? 1 : 0) - (isAr(x.lang) ? 1 : 0); });
   function choose(o, quiet) {
     stopDub(); vd.muted = false;
@@ -2177,7 +2182,8 @@ function addDub(st, vd, v) {
       ['play', 'playing'].forEach(function (e) { vd.addEventListener(e, function () { if (curDub === au) { sync(); au.play().catch(function () {}); } }); });
       ['pause', 'waiting'].forEach(function (e) { vd.addEventListener(e, function () { if (curDub === au && !BG.keepDub()) au.pause(); }); });
       vd.addEventListener('seeked', sync); vd.addEventListener('ratechange', function () { if (curDub === au) au.playbackRate = vd.playbackRate; });
-      vd.addEventListener('volumechange', function () { if (curDub === au) { au.volume = vd.volume; } });
+      /* زر الصوت في المشغّل يتحكم بالدبلجة: لو أحد فك كتم الفيديو والدبلجة شغالة، نرجّع الكتم ونبدّل صوت الدبلجة بدال ما يطلع صوتين */
+      vd.addEventListener('volumechange', function () { if (curDub !== au) return; au.volume = vd.volume; if (!vd.muted) { vd.muted = true; au.muted = !au.muted; } });
       var iv = setInterval(function () { if (curDub !== au) { clearInterval(iv); return; } if (!vd.paused) sync(); }, 2000);
       au.addEventListener('error', function () { if (curDub === au) { stopDub(); vd.muted = false; var m0 = opts.filter(function (x) { return x.id === ''; })[0]; toast('ما قدرت أشغّل صوت ' + o.label + (m0 ? '، رجعت لـ ' + m0.label : '') + '.'); mark(''); } });
     }
@@ -2186,6 +2192,11 @@ function addDub(st, vd, v) {
   }
   function mark(id) { var o = opts.filter(function (x) { return x.id === id; })[0] || opts[0]; menu.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-checked', String(x._id === o.id)); }); blbl.textContent = o.label; b.setAttribute('aria-label', 'لغة الصوت: ' + o.label); }
   opts.forEach(function (o) { var x = el('button', '', o.label); x.type = 'button'; x.setAttribute('role', 'radio'); x._id = o.id; x.onclick = function (e) { e.stopPropagation(); menu.hidden = true; choose(o); }; menu.appendChild(x); });
+  if (canSwap) {
+    var sw = el('button', 'dubswap', swapped ? '⇄ رجّع التسمية الأصلية' : '⇄ العربي طلع إنجليزي؟ بدّلها'); sw.type = 'button';
+    sw.onclick = function (e) { e.stopPropagation(); lset(swapKey, swapped ? null : '1'); lset(key, null); stopDub(); vd.muted = false; wrap.remove(); addDub(st, vd, v); toast(swapped ? 'رجعت التسمية الأصلية' : 'تم: صار العربي هو ملف الصوت، ينحفظ لكل حلقات المسلسل'); };
+    menu.appendChild(sw);
+  }
   b.onclick = function (e) { e.stopPropagation(); menu.hidden = !menu.hidden; };
   st.addEventListener('click', function () { menu.hidden = true; });
   wrap.appendChild(b); wrap.appendChild(menu); st.appendChild(wrap);
@@ -2587,7 +2598,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795205221';
+var APP_V = '1795261459';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
