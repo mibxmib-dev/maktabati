@@ -849,7 +849,8 @@ function checkAccount() {
   }).catch(function () {});
 }
 function crawl(bg) {
-  var gen = ++crawlGen, q = [rootKey], active = 0, doneN = 0, before = bg ? Object.keys(nodes).length : 0; crawling = !bg; refreshing = !!bg; fatal = '';
+  var gen = ++crawlGen, q = [rootKey], active = 0, doneN = 0, errN = 0, lastErr = '', t0 = Date.now(), before = bg ? Object.keys(nodes).length : 0; crawling = !bg; refreshing = !!bg; fatal = '';
+  function note(ok) { lset('mk_lastcrawl', JSON.stringify({ at: Date.now(), ms: Date.now() - t0, n: doneN, err: errN, last: lastErr, ok: ok })); }
   if (bg) RFX.start();
   checkAccount();
   function next() {
@@ -857,10 +858,10 @@ function crawl(bg) {
     while (active < 4 && q.length) (function (id) {
       active++;
       loadKids(id, bg).then(function (k) { k.forEach(function (c) { if (nodes[c].folder) q.push(c); }); })
-        .catch(function (e) { if (id === rootKey) { if (bg) { refreshing = false; RFX.done(false); return; } if (noNet(e) && hasDl()) { openOffline(); return; } fatal = noNet(e) ? 'ما فيه اتصال بالإنترنت. اتصل ثم اضغط «تحديث».' : e.message; } else nodes[id].kids = []; })
+        .catch(function (e) { errN++; lastErr = (nodes[id] ? nodes[id].name + ': ' : '') + (e && e.message || e); if (id === rootKey) { if (bg) { refreshing = false; RFX.done(false); note(false); return; } if (noNet(e) && hasDl()) { openOffline(); return; } fatal = noNet(e) ? 'ما فيه اتصال بالإنترنت. اتصل ثم اضغط «تحديث».' : e.message; } else if (!bg || !nodes[id].kids) nodes[id].kids = []; })
         .then(function () { active--; doneN++; if (!bg) schedule(); else RFX.set(doneN / (doneN + active + q.length + 1)); next(); });
     })(q.shift());
-    if (!active && !q.length) { var done = crawling || refreshing; crawling = false; if (refreshing) { refreshing = false; pruneLib(); RFX.done(Object.keys(nodes).length !== before); } if (done && !fatal) saveLib(); schedule(); }
+    if (!active && !q.length) { var done = crawling || refreshing; if (done) note(true); crawling = false; if (refreshing) { refreshing = false; pruneLib(); RFX.done(Object.keys(nodes).length !== before); } if (done && !fatal) saveLib(); schedule(); }
   }
   next();
 }
@@ -1966,7 +1967,8 @@ function renderSettings(box) {
   }
   /* المقدمة والخاتمة */
   var isec = el('section', 'setsec');
-  box.appendChild(el('p', 'setnote', 'نسخة التطبيق: ' + new Date(Number(APP_V) * 1000).toLocaleString('ar-SA-u-nu-latn', { dateStyle: 'medium', timeStyle: 'short' }))); isec.appendChild(el('h3', '', 'المقدمة والخاتمة'));
+  box.appendChild(el('p', 'setnote', 'نسخة التطبيق: ' + new Date(Number(APP_V) * 1000).toLocaleString('ar-SA-u-nu-latn', { dateStyle: 'medium', timeStyle: 'short' })));
+  try { var lc = JSON.parse(lget('mk_lastcrawl') || 'null'); if (lc) box.appendChild(el('p', 'setnote', 'آخر تحديث للمكتبة: ' + new Date(lc.at).toLocaleTimeString('ar-SA-u-nu-latn', { timeStyle: 'short' }) + ' · ' + lc.n + ' مجلد · ' + Math.round(lc.ms / 1000) + ' ث' + (lc.ok ? '' : ' · ما كمل') + (lc.err ? ' · أخطاء: ' + lc.err + ' (' + lc.last + ')' : ''))); } catch (e) {} isec.appendChild(el('h3', '', 'المقدمة والخاتمة'));
   [['mk_intro', 'تشغيل المقدمة قبل كل حلقة', introOn], ['mk_outro', 'تشغيل الخاتمة بعد كل حلقة', outroOn], ['mk_autoskip', 'تخطي شارة الحلقة تلقائياً', autoSkipOn, 'on']].forEach(function (o) {
     var r = el('div', 'setrow'); r.appendChild(el('span', '', o[1]));
     var w = el('button', 'switch'); w.type = 'button'; w.setAttribute('role', 'switch'); w.setAttribute('aria-label', o[1]); w.setAttribute('aria-checked', String(o[2]()));
@@ -2766,7 +2768,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795663288';
+var APP_V = '1795663605';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
