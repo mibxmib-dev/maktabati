@@ -1864,7 +1864,7 @@ function renderFolder(box) {
     var lb = el('span', '', 'الافتتاحية أول ما تدخل');
     var pb = el('button', 'btn small'); pb.type = 'button'; pb.appendChild(icon('M8 5v14l11-7z', 16, true)); pb.appendChild(document.createTextNode('شغّلها الحين')); pb.onclick = function () { playOpening(n); };
     oc.appendChild(sw); oc.appendChild(lb); oc.appendChild(pb); box.appendChild(oc);
-    if (openedFor !== n.id) { openedFor = n.id; if (on) setTimeout(function () { if (cur === n.id && view === 'folder') playOpening(n); }, 250); }
+    if (openedFor !== n.id) { openedFor = n.id; if (on && openDue(n)) setTimeout(function () { if (cur === n.id && view === 'folder') { lset('mk_chopenlast:' + n.id, String(Date.now())); playOpening(n); } }, 250); }
   }
   if (sub.length) {
     sub.forEach(function (b) {
@@ -1979,13 +1979,18 @@ function renderSettings(box) {
   /* المقدمة والخاتمة */
   var isec = el('section', 'setsec');
   box.appendChild(el('p', 'setnote', 'نسخة التطبيق: ' + new Date(Number(APP_V) * 1000).toLocaleString('ar-SA-u-nu-latn', { dateStyle: 'medium', timeStyle: 'short' })));
-  try { var lc = JSON.parse(lget('mk_lastcrawl') || 'null'); if (lc) box.appendChild(el('p', 'setnote', 'آخر تحديث للمكتبة: ' + new Date(lc.at).toLocaleTimeString('ar-SA-u-nu-latn', { timeStyle: 'short' }) + ' · ' + lc.n + ' مجلد · ' + Math.round(lc.ms / 1000) + ' ث' + (lc.ok ? '' : ' · ما كمل') + (lc.err ? ' · أخطاء: ' + lc.err + ' (' + lc.last + ')' : ''))); } catch (e) {} isec.appendChild(el('h3', '', 'المقدمة والخاتمة'));
+  try { var lc = JSON.parse(lget('mk_lastcrawl') || 'null'); if (lc) box.appendChild(el('p', 'setnote', 'آخر تحديث للمكتبة: ' + new Date(lc.at).toLocaleTimeString('ar-SA-u-nu-latn', { timeStyle: 'short' }) + ' · ' + lc.n + ' مجلد · ' + Math.round(lc.ms / 1000) + ' ث' + (lc.ok ? '' : ' · ما كمل') + (lc.err ? ' · أخطاء: ' + lc.err + ' (' + lc.last + ')' : ''))); } catch (e) {} isec.appendChild(el('h3', '', 'المقدمة والخاتمة والافتتاحية'));
   [['mk_intro', 'تشغيل المقدمة قبل كل حلقة', introOn], ['mk_outro', 'تشغيل الخاتمة بعد كل حلقة', outroOn], ['mk_autoskip', 'تخطي شارة الحلقة تلقائياً', autoSkipOn, 'on']].forEach(function (o) {
     var r = el('div', 'setrow'); r.appendChild(el('span', '', o[1]));
     var w = el('button', 'switch'); w.type = 'button'; w.setAttribute('role', 'switch'); w.setAttribute('aria-label', o[1]); w.setAttribute('aria-checked', String(o[2]()));
     w.onclick = function () { lset(o[0], o[3] ? (o[2]() ? null : 'on') : (o[2]() ? 'off' : null)); w.setAttribute('aria-checked', String(o[2]())); };
     r.appendChild(w); isec.appendChild(r);
   });
+  var orow = el('div', 'setrow'); var olb = el('label', '', 'افتتاحية القناة تشتغل'); olb.htmlFor = 'openModeSel'; orow.appendChild(olb);
+  var osel = el('select', 'setsel'); osel.id = 'openModeSel';
+  [['every', 'كل مرة تدخل القناة'], ['daily', 'أول مرة باليوم'], ['once', 'أول مرة بس'], ['off', 'بدون']].forEach(function (o) { var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; if (openMode() === o[0]) op.selected = true; osel.appendChild(op); });
+  osel.onchange = function () { lset('mk_chopenmode', osel.value === 'every' ? null : osel.value); if (osel.value === 'once') Object.keys(localStorage).forEach(function (k) { if (k.indexOf('mk_chopenlast:') === 0) localStorage.removeItem(k); }); };
+  orow.appendChild(osel); isec.appendChild(orow);
   isec.appendChild(el('p', 'setnote', 'شارة الحلقة: وانت تشاهد اضغط «ضبط الشارة» تحت الفيديو وحدد بدايتها ونهايتها مرة وحدة، ويطلع زر «تخطي الشارة» في كل الحلقات. ولو المقدمة حقتك اشتغلت قبل الحلقة، يتخطى شارتها الأصلية لحاله.'));
   isec.appendChild(el('p', 'setnote', 'حط فيديو المقدمة داخل مجلد اسمه «المقدمة» في مجلد المسلسل أو الموسم. لو فيه أكثر من مقدمة، يختار وحدة عشوائياً كل مرة. فيديو اسمه فيه «خاتمة» أو Outro يشتغل بعد الحلقة. لو تكمل حلقة من نصها، ما تطلع المقدمة. وتقدر تتخطاها على طول.'));
   box.appendChild(isec);
@@ -2310,6 +2315,15 @@ function adsFor(n) { var x = n; while (x && x.id !== rootKey) { if (x.ads && x.a
 /* ===== افتتاحية القناة ===== */
 var openedFor = '', opAudio = null;
 function chanOpenOn(ch) { return lget('mk_chopen:' + ch.id) !== 'off'; }
+/* متى تشتغل افتتاحية القناة (من الإعدادات): كل مرة / أول مرة باليوم / أول مرة بس / بدون */
+function openMode() { return lget('mk_chopenmode') || 'every'; }
+function openDue(ch) {
+  var m = openMode(), last = Number(lget('mk_chopenlast:' + ch.id) || 0);
+  if (m === 'off') return false;
+  if (m === 'once') return !last;
+  if (m === 'daily') return !last || new Date(last).toDateString() !== new Date().toDateString();
+  return true;
+}
 function stopOpening() { if (opAudio) { try { opAudio.a.pause(); opAudio.a.removeAttribute('src'); opAudio.a.load(); } catch (e) {} opAudio.pill.remove(); opAudio = null; } }
 function playOpening(ch) {
   var list = (ch.opening || []).filter(function (o) { return !offline && (demo || canStream()); }); if (!list.length) return;
@@ -2780,7 +2794,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795665642';
+var APP_V = '1795670211';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
