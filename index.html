@@ -793,7 +793,13 @@ function loadKids(id, force) {
       .concat(adDirs.map(function (aid) { return loadKids(aid, force).then(function (k) { k.forEach(function (x) { if (nodes[x] && !nodes[x].folder) ads.push(x); }); }, function () {}); }))
       .concat(inDirs.map(function (iid) { return loadKids(iid, force).then(function (k) {
         var dirOut = OUTRO_RE.test(nodes[iid].name) && !/(مقدم|intro|opening|شار)/i.test(nodes[iid].name);
-        k.forEach(function (x) { if (nodes[x] && !nodes[x].folder) (dirOut || OUTRO_RE.test(nodes[x].name) ? outros : intros).push(x); });
+        k.forEach(function (x) {
+          var f = nodes[x]; if (!f || f.folder) return;
+          /* المقدمة لازم تكون قصيرة (أقل من 6 دقائق) أو اسمها فيه مقدمة/Intro؛ غير كذا هي حلقة انحطت هنا بالغلط فترجع مع الحلقات */
+          var named = /(مقدم|intro|opening|theme|شار[ةه]|outro|closing|ending|خاتم|ختام)/i.test(f.name), short = f.dur > 0 && f.dur < 360000;
+          if (!named && !short) { a.push(x); return; }
+          (dirOut || OUTRO_RE.test(f.name) ? outros : intros).push(x);
+        });
       }, function () {}); }))
       .concat(opDirs.map(function (oid) { return loadKids(oid, force).then(function (k) {
         k.forEach(function (x) { if (nodes[x] && !nodes[x].folder) opening.push({ id: x, name: nodes[x].name }); });
@@ -2745,7 +2751,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795654344';
+var APP_V = '1795655481';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
