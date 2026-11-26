@@ -1880,6 +1880,18 @@ function renderYT(box, n) {
     else box.appendChild(el('div', 'state', 'لا توجد فيديوهات بعد. ارفعها داخل أقسام كل قناة.'));
     return;
   }
+  if (n.parent === ytRoot(n).id && !offline && livePos(n, Date.now())) {
+    /* قناة اليوتيوب: الفيديوهات أو بث القناة */
+    var ytab = lget('mk_chtab') === 'live' ? 'live' : 'lib', seg = el('div', 'chtabs'); seg.setAttribute('role', 'tablist');
+    [['lib', 'الفيديوهات'], ['live', 'بث القناة']].forEach(function (d) {
+      var b = el('button', 'chtab' + (ytab === d[0] ? ' on' : '')); b.type = 'button'; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(ytab === d[0]));
+      if (d[0] === 'live') b.appendChild(el('span', 'livedot')); b.appendChild(document.createTextNode(d[1]));
+      b.onclick = function () { if (ytab === d[0]) return; lset('mk_chtab', d[0]); lastRKey = ''; render(); window.scrollTo(0, 0); };
+      seg.appendChild(b);
+    });
+    box.appendChild(seg);
+    if (ytab === 'live') { liveBlock(box, n); return; }
+  }
   var secs = kids(n.id).filter(function (k) { return k.folder; }), loose = kids(n.id).filter(function (k) { return !k.folder; }), shown = 0;
   if (loose.length) { var g0 = el('div', 'vgrid'); loose.forEach(function (v) { g0.appendChild(vcard(v, true)); }); box.appendChild(g0); shown++; }
   secs.forEach(function (s) { ensure(s.id); });
@@ -2591,6 +2603,13 @@ var RD = (function () {
 var LIVE_EPOCH = Date.UTC(2026, 9, 31, 21, 0, 0); /* منتصف ليل ١ نوفمبر ٢٠٢٦ بتوقيت مكة */
 var DAY = 864e5, liveCur = null;
 function liveList(ch) {
+  if (inYT(ch)) {
+    /* قناة يوتيوب: كل قسم (مثل رايد 24 ساعة) بالدور، والفيديوهات اللي بدون قسم قائمة لحالها */
+    var yl = [], loose_ = kids(ch.id).filter(function (k) { return !k.folder; });
+    if (loose_.length) yl.push(loose_);
+    kids(ch.id).filter(function (k) { return k.folder && !isHidden(k.id); }).forEach(function (sx) { var vs = videosUnder(sx); if (vs.length) yl.push(vs); });
+    var yo = [], j = 0, mr = true; while (mr) { mr = false; yl.forEach(function (l) { if (j < l.length) { yo.push(l[j]); mr = true; } }); j++; } return yo;
+  }
   /* المسلسلات بالتناوب: حلقة من كل مسلسل بالدور، والأفلام بينها */
   var ts = titlesUnder(ch).filter(function (t) { return !isHidden(t.id); }).sort(function (a, b) { return norm(a.name) < norm(b.name) ? -1 : 1; });
   var lists = ts.map(function (t) { return t.folder ? allEpisodes(t) : [t]; }).filter(function (l) { return l.length; }), out = [], i = 0, more = true;
@@ -2611,7 +2630,7 @@ function liveToday(ch) {
   while (t < mid + DAY && out.length < 300) { var v = p.list[k]; out.push({ v: v, start: t, end: t + epLen(v) * 1000 }); t += epLen(v) * 1000; k = (k + 1) % p.list.length; }
   return out;
 }
-function liveLabel(v) { var t = titleOf(v); return (t !== v ? tidyTitle(t.name) + ' · ' + dispLong(v) : disp(v)); }
+function liveLabel(v) { if (inYT(v)) { var sx = nodes[v.parent], cr = ytCreator(v); return (sx && cr && sx.id !== cr.id ? sx.name + ' · ' : '') + disp(v); } var t = titleOf(v); return (t !== v ? tidyTitle(t.name) + ' · ' + dispLong(v) : disp(v)); }
 function playLive(ch) {
   var p = livePos(ch, Date.now()); if (!p) { toast('ما فيه حلقات في القناة للبث'); return; }
   liveCur = { ch: ch, v: p.v, at: p.at, start: p.start, i: p.i, list: p.list, now: true }; queue = [p.v]; play(0);
@@ -2643,6 +2662,7 @@ function liveNext(lv, vd) {
 }
 function liveRow(box) {
   var cos = kids(rootKey).filter(function (c) { return c.folder && c.kids && !bucketKind(c) && !isTitle(c) && !YT_RE.test(norm(c.name)) && !READ_RE.test(norm(c.name)) && !isHidden(c.id); });
+  kids(rootKey).filter(function (c) { return c.folder && YT_RE.test(norm(c.name)); }).forEach(function (yt) { kids(yt.id).forEach(function (c) { if (c.folder && c.kids && !isHidden(c.id)) cos.push(c); }); });
   var items = cos.map(function (c) { return { c: c, p: livePos(c, Date.now()) }; }).filter(function (x) { return x.p; });
   if (!items.length) return;
   var sec = el('section', 'liverow'), hd = el('h2', 'ptitle2'); hd.appendChild(el('span', 'livedot')); hd.appendChild(document.createTextNode('مباشر الآن')); sec.appendChild(hd);
@@ -3184,7 +3204,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795673035';
+var APP_V = '1795715333';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
