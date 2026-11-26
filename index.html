@@ -2310,7 +2310,8 @@ function addSkipIntro(st, vd, v, introPlayed) {
   vd.addEventListener('timeupdate', function () {
     var t = vd.currentTime, inside = t >= r.a && t < r.b - 1;
     /* شغّلنا مقدمتك قبل الحلقة، أو التخطي التلقائي شغال: نقفز على طول */
-    if (inside && !done_ && (introPlayed || autoSkipOn())) { done_ = true; try { vd.currentTime = r.b; } catch (er) {} toast('تخطيت الشارة'); return; }
+    /* التخطي التلقائي بس إذا انت حددت مكان الشارة بنفسك، مو بالتخمين */
+    if (inside && !done_ && !r.guess && (introPlayed || autoSkipOn())) { done_ = true; try { vd.currentTime = r.b; } catch (er) {} toast('تخطيت الشارة'); return; }
     b.hidden = !inside || done_;
   });
 }
@@ -2334,7 +2335,14 @@ function openSkipSet() {
   box.hidden = false;
 }
 $('btnSkipSet').onclick = openSkipSet;
-function introsFor(n, kind) { var x = nodes[n.parent]; while (x && x.id !== rootKey) { var l = x[kind]; if (l && l.length) return l.map(function (id) { return nodes[id]; }).filter(Boolean); x = nodes[x.parent]; } return []; }
+function introsFor(n, kind) {
+  var x = nodes[n.parent];
+  while (x && x.id !== rootKey) { var l = x[kind]; if (l && l.length) return l.map(function (id) { return nodes[id]; }).filter(Boolean); x = nodes[x.parent]; }
+  /* ما لقينا؟ يمكن المجلد داخل موسم ثاني من نفس المسلسل (مثلاً في S02 بس): نستخدمه لكل المواسم */
+  var t = titleOf(n), out = [];
+  if (t && t !== n) (function walk(f) { kids(f.id).forEach(function (c) { if (!c.folder || out.length) return; if (c[kind] && c[kind].length) out = c[kind].map(function (id) { return nodes[id]; }).filter(Boolean); else walk(c); }); })(t);
+  return out;
+}
 function introOn() { return lget('mk_intro') !== 'off'; }
 function outroOn() { return lget('mk_outro') !== 'off'; }
 function adPick(list) { return list[Math.floor(Math.random() * list.length)]; }
@@ -2737,7 +2745,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795653340';
+var APP_V = '1795654344';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
