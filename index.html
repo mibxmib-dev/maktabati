@@ -2946,7 +2946,7 @@ function startVideo(v, st) {
       return;
     }
     failed = true;
-    driveFrame(v, st, 'تعذّر تشغيل الملف هنا، فانتقلت لمشغّل Google Drive. حفظ مكان التوقف لا يعمل في هذا المشغّل.');
+    driveFrame(v, st, code === 4 || code === 3 ? 'صيغة الصورة في هذا الملف ما يقدر الجهاز يشغّلها (غالباً 10-bit أو HEVC)، فانتقلت لمشغّل Google Drive. مرّر المجلد على أداة التحويل ويشتغل هنا عادي.' : 'تعذّر تشغيل الملف هنا، فانتقلت لمشغّل Google Drive. حفظ مكان التوقف لا يعمل في هذا المشغّل.');
   });
   if (liveCur && liveCur.v === v) {
     /* المباشر: ندخل على نفس اللحظة اللي يُعرض فيها الآن */
@@ -3222,7 +3222,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795727076';
+var APP_V = '1795727795';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
