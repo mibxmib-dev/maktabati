@@ -2396,15 +2396,18 @@ function adsFor(n) { var x = n; while (x && x.id !== rootKey) { if (x.ads && x.a
 /* ===== قسم القراءة: مجلات وقصص ومانغا =====
    مجلد في الجذر اسمه «مجلات» أو «قصص» أو «مانغا» (أو «قراءة»/«كتب»/Manga/Comics).
    كل كتاب = مجلد فيه صور الصفحات بالترتيب، أو ملف PDF. ومجلد فيه مجلدات كتب = سلسلة (مثل مانغا بفصولها). */
-var READ_RE = /^(قراء[ةه]|القراء[ةه]|مكتب[ةه] القراء[ةه]|مجل[ةه]|مجلات|المجلات|قص[ةه]|قصص|القصص|مانغا|مانجا|المانغا|المانجا|كتب|الكتب|كوميكس|manga|mangas|comics?|magazines?|stories|books|reading)$/;
+/* يكفي إن اسم المجلد يحتوي الكلمة: «مجلات و كتب»، «قصص الأطفال»، «Manga»… */
+var READ_RE = /(قراء[ةه]|مجل[ةه]|مجلات|قصص|مانغا|مانجا|كتب|كتاب|كوميكس|كومكس|manga|comic|magazine|stories|books|reading)/;
 function readRoot(n) { var a = n.id === rootKey ? [] : trail(n.folder ? n.id : n.parent); return a.length && READ_RE.test(norm(a[0].name)) ? a[0] : null; }
 function inRead(n) { return !!readRoot(n); }
-function pagesOf(n) { return (n.images || []).filter(function (i) { return !/^(cover|غلاف|folder|poster)\b/i.test(i.name) || (n.images || []).length < 3; }); }
+/* صورة الغلاف (اسمها فيه cover أو غلاف) للواجهة بس، ما تنحسب صفحة */
+var COVER_RE = /(cover|غلاف|poster|folder\.)/i;
+function pagesOf(n) { return (n.images || []).filter(function (i) { return !COVER_RE.test(i.name); }); }
 function isBook(n) { return n.folder && pagesOf(n).length >= 1 && !kids(n.id).some(function (k) { return k.folder; }); }
 function readCover(n, d) {
   if (n.pdf) return n.thumb ? { id: n.id, thumb: n.thumb } : null;
   d = d || 0; var im = n.images || [];
-  var named = im.filter(function (i) { return /(cover|غلاف|poster|folder)/i.test(i.name); })[0]; if (named || im[0]) return named || im[0];
+  var named = im.filter(function (i) { return COVER_RE.test(i.name); })[0]; if (named || im[0]) return named || im[0];
   if ((n.pdfs || [])[0] && n.pdfs[0].thumb) return n.pdfs[0];
   if (d > 3) return null;
   var ks = kids(n.id).filter(function (k) { return k.folder; });
@@ -2422,7 +2425,7 @@ function readMeta(n) {
   var r = rpos()[n.id];
   if (n.pdf) return r ? (r.done ? 'قرأتها' : 'صفحة ' + (r.p + 1) + (r.n ? ' من ' + r.n : '')) : 'PDF';
   if (isBook(n)) { var c = pagesOf(n).length; return r ? (r.done ? 'قرأتها ✓' : 'صفحة ' + (r.p + 1) + ' من ' + c) : c + ' صفحة'; }
-  var it = readItems(n); return it.length ? it.length + (it.length > 10 ? ' عدد' : ' أعداد') : '';
+  var it = readItems(n); return it.length ? (it.length === 1 ? 'عدد واحد' : it.length === 2 ? 'عددان' : it.length + (it.length > 10 ? ' عدد' : ' أعداد')) : 'قريباً';
 }
 function readCard(n) {
   var b = el('button', 'card book'); b.type = 'button';
@@ -2448,15 +2451,21 @@ function readContinue(root) {
 }
 function readSection(box, top) {
   var items = readItems(top); if (!items.length && !(top.images || []).length) return false;
-  var hd = el('div', 'rowhead'), h2 = el('h2', ''); h2.textContent = '📖 ' + top.name; hd.appendChild(h2);
-  var m = el('button', '', 'عرض الكل'); m.type = 'button'; m.onclick = function () { open(top); }; hd.appendChild(m); box.appendChild(hd);
+  /* غلاف القسم نفسه: صورة داخل مجلد «مجلات و كتب» تطلع شعار للقسم في الرئيسية */
+  var sec = el('section', 'company readsec'), hd = el('div', 'cohead'), hb = el('button', 'coname'); hb.type = 'button';
+  var lp = (top.images || []).filter(function (i) { return COVER_RE.test(i.name); })[0] || (top.images || [])[0];
+  if (lp) { var li = el('span', 'cologo'); li.appendChild(img(lp)); hb.appendChild(li); } else hb.appendChild(el('span', '', '📖 '));
+  hb.appendChild(el('span', '', top.name.trim())); hb.appendChild(icon('M15 6l-6 6 6 6', 18)); hb.onclick = function () { open(top); };
+  hd.appendChild(hb); sec.appendChild(hd); box.appendChild(sec); box = sec;
   var cont = readContinue(top);
   if (cont.length) row(box, 'تابع القراءة', cont, null, true, readCard);
   var r = el('div', 'row'); items.forEach(function (n) { r.appendChild(readCard(n)); }); box.appendChild(r);
   return true;
 }
 function renderRead(box, n) {
-  box.appendChild(el('h2', 'ptitle2', '📖 ' + n.name));
+  var lp = n.parent === rootKey ? ((n.images || []).filter(function (i) { return COVER_RE.test(i.name); })[0] || (n.images || [])[0]) : null;
+  if (lp) { var head = el('div', 'ythead'), av = el('span', 'cologo big'); av.appendChild(img(lp)); head.appendChild(av); head.appendChild(el('h2', 'ptitle2', n.name.trim())); box.appendChild(head); }
+  else box.appendChild(el('h2', 'ptitle2', '📖 ' + n.name.trim()));
   if (isBook(n)) {
     var go = el('button', 'btn primary'); go.type = 'button'; var r = rpos()[n.id];
     go.textContent = r && !r.done ? 'كمّل القراءة (صفحة ' + (r.p + 1) + ')' : 'ابدأ القراءة'; go.onclick = function () { RD.start(n); };
@@ -2467,7 +2476,7 @@ function renderRead(box, n) {
   var cont = n.parent === rootKey ? readContinue(n) : [];
   if (cont.length) row(box, 'تابع القراءة', cont, null, true, readCard);
   var items = readItems(n);
-  if (!items.length) { box.appendChild(el('div', 'state', crawling ? 'جارٍ التحميل…' : 'ما فيه شي هنا. حط صور الصفحات داخل مجلد لكل عدد، أو ملفات PDF.')); return; }
+  if (!items.length) { box.appendChild(el('div', 'state', crawling ? 'جارٍ التحميل…' : 'ما فيه أعداد بعد. حط كل عدد في مجلد فيه صور صفحاته، أو ارفع ملف PDF هنا.')); return; }
   var g = el('div', 'grid'); items.forEach(function (k) { g.appendChild(readCard(k)); }); box.appendChild(g);
 }
 
@@ -3209,7 +3218,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795718147';
+var APP_V = '1795719111';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
