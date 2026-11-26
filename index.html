@@ -404,6 +404,14 @@ button.pseries[hidden]{display:none}
 .skiprow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .skiprow>span{min-width:6.5em}
 .skiprow>b{min-width:3em;font-variant-numeric:tabular-nums}
+.livenowcard{display:flex;gap:12px;align-items:stretch;background:var(--raised);border:1px solid rgba(229,72,77,.45);border-radius:14px;padding:10px;color:var(--text);font:inherit;text-align:start;cursor:pointer}
+.lnthumb{flex:0 0 min(130px,32%);aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#000}.lnthumb img{width:100%;height:100%;object-fit:cover}
+.lntext{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}.lntag{color:#e5484d;font-weight:700;font-size:13px}
+.lnname{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lnmin{font-size:13px;color:var(--muted)}
+.lntext .lnprog{position:relative;left:auto;right:auto;bottom:auto;display:block;height:5px;border-radius:3px;overflow:hidden;margin-top:auto}
+.lshead{color:var(--muted);font-size:14px;margin-top:4px}
+.lsrow{width:100%;background:none;border:0;border-bottom:1px solid var(--line);color:var(--text);font:inherit;text-align:start;cursor:pointer;align-items:center}
+.lstitle{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lsdur{color:var(--muted);font-size:12px}
 .livedot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#e5484d;box-shadow:0 0 0 0 rgba(229,72,77,.7);animation:livepulse 1.6s infinite;margin-inline-end:8px;vertical-align:middle}
 @keyframes livepulse{0%{box-shadow:0 0 0 0 rgba(229,72,77,.6)}70%{box-shadow:0 0 0 8px rgba(229,72,77,0)}100%{box-shadow:0 0 0 0 rgba(229,72,77,0)}}
 .livetrack{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px}
@@ -414,7 +422,6 @@ button.pseries[hidden]{display:none}
 .liveprog{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.25)}.liveprog span{display:block;height:100%;background:#e5484d}
 .livech{font-weight:700;font-size:15px}.livenow{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .livebox{display:flex;flex-direction:column;gap:10px;margin:0 0 16px}
-.livebox details summary{cursor:pointer;color:var(--muted);font-size:14px;padding:6px 0}
 .livesched{max-height:340px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;margin-top:6px}
 .lsrow{display:flex;gap:12px;padding:8px 12px;border-bottom:1px solid var(--line);font-size:14px}.lsrow b{min-width:4.5em;font-variant-numeric:tabular-nums}
 .lsrow.past{opacity:.45}.lsrow.now{background:rgba(229,72,77,.15)}.lsrow.now b::before{content:"● ";color:#e5484d}
@@ -2377,19 +2384,37 @@ function liveRow(box) {
 function liveBlock(box, ch) {
   var p = livePos(ch, Date.now()); if (!p) return;
   var sec = el('section', 'livebox');
-  var go = el('button', 'btn primary'); go.type = 'button'; go.appendChild(el('span', 'livedot')); go.appendChild(document.createTextNode('شاهد المباشر · الآن: ' + liveLabel(p.v))); go.onclick = function () { playLive(ch); };
-  sec.appendChild(go);
-  var det = document.createElement('details'), sm = document.createElement('summary'); sm.textContent = 'جدول اليوم (بتوقيت مكة)'; det.appendChild(sm);
-  var ul = el('div', 'livesched'), now = Date.now();
-  det.addEventListener('toggle', function () {
-    if (!det.open || ul.childNodes.length) return;
-    liveToday(ch).forEach(function (e) {
-      var r = el('div', 'lsrow' + (e.start <= now && now < e.end ? ' now' : e.end <= now ? ' past' : ''));
-      r.appendChild(el('b', '', riyadhTime(e.start))); r.appendChild(el('span', '', liveLabel(e.v))); ul.appendChild(r);
-    });
-    var cur_ = ul.querySelector('.now'); if (cur_) ul.scrollTop = Math.max(0, cur_.offsetTop - 120);
+  /* بطاقة «يُعرض الآن» بالدقيقة */
+  var nowc = el('button', 'livenowcard'); nowc.type = 'button';
+  var th = el('span', 'lnthumb'), lt = el('span', 'lntext'), tag = el('span', 'lntag'); tag.appendChild(el('span', 'livedot')); tag.appendChild(document.createTextNode('يُعرض الآن'));
+  var nm = el('b', 'lnname'), mn = el('span', 'lnmin'), pr = el('span', 'liveprog lnprog'), f = el('span'); pr.appendChild(f);
+  lt.appendChild(tag); lt.appendChild(nm); lt.appendChild(mn); lt.appendChild(pr);
+  nowc.appendChild(th); nowc.appendChild(lt); nowc.onclick = function () { playLive(ch); };
+  sec.appendChild(nowc);
+  var hd = el('div', 'lshead', 'جدول اليوم · بتوقيت مكة'); sec.appendChild(hd);
+  var ul = el('div', 'livesched'); sec.appendChild(ul); box.appendChild(sec);
+  var lastV = null, rows = [];
+  liveToday(ch).forEach(function (e) {
+    var r = el('button', 'lsrow'); r.type = 'button'; r._e = e;
+    r.appendChild(el('b', '', riyadhTime(e.start))); r.appendChild(el('span', 'lstitle', liveLabel(e.v))); r.appendChild(el('span', 'lsdur', Math.round(epLen(e.v) / 60) + ' د'));
+    r.onclick = function () { if (r.classList.contains('now')) playLive(ch); else toast('تُعرض الساعة ' + riyadhTime(e.start)); };
+    ul.appendChild(r); rows.push(r);
   });
-  det.appendChild(ul); sec.appendChild(det); box.appendChild(sec);
+  function tick() {
+    if (!sec.isConnected) { clearInterval(iv); return; }
+    var t = Date.now(), q = livePos(ch, t); if (!q) return;
+    var len = epLen(q.v), m = Math.floor(q.at / 60) + 1, left = Math.max(1, Math.ceil((len - q.at) / 60));
+    if (q.v !== lastV) {
+      lastV = q.v; nm.textContent = liveLabel(q.v);
+      th.textContent = ''; var pic = poster(q.v) || poster(titleOf(q.v)); if (pic) th.appendChild(img(pic));
+    }
+    mn.textContent = 'الدقيقة ' + m + ' من ' + Math.round(len / 60) + ' · باقي ' + left + ' د · بدأت ' + riyadhTime(q.start);
+    f.style.width = Math.min(100, q.at / len * 100) + '%';
+    var cur = null;
+    rows.forEach(function (r) { var e = r._e, on = e.start <= t && t < e.end; r.classList.toggle('now', on); r.classList.toggle('past', e.end <= t); if (on) cur = r; });
+    if (cur && !tick.done) { tick.done = 1; ul.scrollTop = Math.max(0, cur.offsetTop - ul.offsetTop - 80); }
+  }
+  var iv = setInterval(tick, 15000); tick();
 }
 /* ===== افتتاحية القناة ===== */
 var openedFor = '', opAudio = null;
@@ -2882,7 +2907,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795670771';
+var APP_V = '1795671061';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
