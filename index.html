@@ -404,6 +404,20 @@ button.pseries[hidden]{display:none}
 .skiprow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .skiprow>span{min-width:6.5em}
 .skiprow>b{min-width:3em;font-variant-numeric:tabular-nums}
+.livedot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#e5484d;box-shadow:0 0 0 0 rgba(229,72,77,.7);animation:livepulse 1.6s infinite;margin-inline-end:8px;vertical-align:middle}
+@keyframes livepulse{0%{box-shadow:0 0 0 0 rgba(229,72,77,.6)}70%{box-shadow:0 0 0 8px rgba(229,72,77,0)}100%{box-shadow:0 0 0 0 rgba(229,72,77,0)}}
+.livetrack{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px}
+.livecard{flex:0 0 auto;width:220px;display:flex;flex-direction:column;gap:4px;text-align:start;background:none;border:0;color:var(--text);font:inherit;cursor:pointer;padding:0}
+.livecard .vthumb{position:relative;display:block;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:var(--raised)}
+.livecard .vthumb img{width:100%;height:100%;object-fit:cover}
+.livebadge{position:absolute;top:8px;right:8px;background:#e5484d;color:#fff;font-size:12px;font-weight:700;padding:2px 8px;border-radius:6px}
+.liveprog{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.25)}.liveprog span{display:block;height:100%;background:#e5484d}
+.livech{font-weight:700;font-size:15px}.livenow{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.livebox{display:flex;flex-direction:column;gap:10px;margin:0 0 16px}
+.livebox details summary{cursor:pointer;color:var(--muted);font-size:14px;padding:6px 0}
+.livesched{max-height:340px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;margin-top:6px}
+.lsrow{display:flex;gap:12px;padding:8px 12px;border-bottom:1px solid var(--line);font-size:14px}.lsrow b{min-width:4.5em;font-variant-numeric:tabular-nums}
+.lsrow.past{opacity:.45}.lsrow.now{background:rgba(229,72,77,.15)}.lsrow.now b::before{content:"● ";color:#e5484d}
 .dubwrap{position:absolute;top:10px;right:122px;z-index:7}
 .dubbtn{position:static;width:auto;gap:6px;padding:0 10px 0 12px;font:inherit;font-size:15px;font-weight:700}
 .dublbl{white-space:nowrap}
@@ -1041,7 +1055,7 @@ function remember(v) { var t = titleOf(v), h = hist(); h[t.id] = { v: v.id, at: 
 function poses() { return jget('pos', {}); }
 function posOf(v) { var p = poses()[v.id]; return p && p.t > 10 && (!p.d || p.t < p.d - 20) ? p : null; }
 function savePos(v, vd) {
-  if (!vd || !isFinite(vd.currentTime)) return;
+  if (!vd || !isFinite(vd.currentTime) || (liveCur && liveCur.v === v)) return;
   var a = poses(), t = vd.currentTime, d = isFinite(vd.duration) ? vd.duration : 0;
   if (t > 10 && !(d && t > d - 20)) a[v.id] = { t: Math.floor(t), d: Math.floor(d), at: Date.now() }; else delete a[v.id];
   jset('pos', a);
@@ -1085,6 +1099,7 @@ function open(n) {
   playEpisode(n);
 }
 function playEpisode(v) {
+  liveCur = null;
   if (inYT(v)) { ytPlay(v); return; }
   var t = titleOf(v), eps = t.folder ? allEpisodes(t) : [v], i = eps.indexOf(v);
   queue = i < 0 ? [v] : eps; play(i < 0 ? 0 : i);
@@ -1672,6 +1687,7 @@ function renderHome(box) {
   if (offline) { channels(box); chips(box); renderDownloads(box); return; }
   channels(box);
   chips(box);
+  if (filter === 'all') liveRow(box);
   if (filter === 'dl') { renderDownloads(box); return; }
   if (filter === 'fav') {
     var fv = favs().map(function (f) { return nodes[f.id]; }).filter(Boolean);
@@ -1856,6 +1872,7 @@ function renderFolder(box) {
   if (isTitle(n)) { renderTitle(box, n); return; }
   var items = kids(cur), sub = items.filter(function (x) { return x.folder && bucketKind(x); });
   box.appendChild(el('h2', 'ptitle2', n.name));
+  if (n.parent === rootKey && !offline) liveBlock(box, n);
   if (n.parent === rootKey && n.opening && n.opening.length) {
     /* التحكم بالافتتاحية من صفحة القناة نفسها */
     var oc = el('div', 'opctl'), on = chanOpenOn(n);
@@ -2312,6 +2329,68 @@ function addDub(st, vd, v) {
 }
 /* ===== الإعلانات والفواصل ===== */
 function adsFor(n) { var x = n; while (x && x.id !== rootKey) { if (x.ads && x.ads.length) return x.ads.map(function (id) { return nodes[id]; }).filter(Boolean); x = nodes[x.parent]; } return []; }
+/* ===== مباشر: جدول بث يومي لكل قناة بتوقيت مكة؛ أي أحد يفتح المباشر يشوف نفس اللي يُعرض الآن ===== */
+var LIVE_EPOCH = Date.UTC(2026, 9, 31, 21, 0, 0); /* منتصف ليل ١ نوفمبر ٢٠٢٦ بتوقيت مكة */
+var DAY = 864e5, liveCur = null;
+function liveList(ch) {
+  /* المسلسلات بالتناوب: حلقة من كل مسلسل بالدور، والأفلام بينها */
+  var ts = titlesUnder(ch).filter(function (t) { return !isHidden(t.id); }).sort(function (a, b) { return norm(a.name) < norm(b.name) ? -1 : 1; });
+  var lists = ts.map(function (t) { return t.folder ? allEpisodes(t) : [t]; }).filter(function (l) { return l.length; }), out = [], i = 0, more = true;
+  while (more) { more = false; lists.forEach(function (l) { if (i < l.length) { out.push(l[i]); more = true; } }); i++; }
+  return out;
+}
+function epLen(v) { return (v.dur > 0 ? v.dur : 22 * 60e3) / 1000; }
+function livePos(ch, when) {
+  var L = liveList(ch); if (!L.length) return null;
+  var cyc = L.reduce(function (s, v) { return s + epLen(v); }, 0), off = (((when - LIVE_EPOCH) / 1000) % cyc + cyc) % cyc;
+  for (var k = 0; k < L.length; k++) { var d = epLen(L[k]); if (off < d) return { list: L, i: k, v: L[k], at: off, start: when - off * 1000 }; off -= d; }
+  return { list: L, i: 0, v: L[0], at: 0, start: when };
+}
+function riyadhTime(ms) { return new Date(ms).toLocaleTimeString('ar-SA-u-nu-latn', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Riyadh' }); }
+function liveToday(ch) {
+  var now = Date.now(), mid = Math.floor((now + 3 * 3600e3) / DAY) * DAY - 3 * 3600e3, p = livePos(ch, mid); if (!p) return [];
+  var out = [], t = p.start, k = p.i;
+  while (t < mid + DAY && out.length < 300) { var v = p.list[k]; out.push({ v: v, start: t, end: t + epLen(v) * 1000 }); t += epLen(v) * 1000; k = (k + 1) % p.list.length; }
+  return out;
+}
+function liveLabel(v) { var t = titleOf(v); return (t !== v ? tidyTitle(t.name) + ' · ' + dispLong(v) : disp(v)); }
+function playLive(ch) {
+  var p = livePos(ch, Date.now()); if (!p) { toast('ما فيه حلقات في القناة للبث'); return; }
+  liveCur = { ch: ch, v: p.v, at: p.at }; queue = [p.v]; play(0);
+}
+function liveRow(box) {
+  var cos = kids(rootKey).filter(function (c) { return c.folder && c.kids && !bucketKind(c) && !isTitle(c) && !YT_RE.test(norm(c.name)) && !isHidden(c.id); });
+  var items = cos.map(function (c) { return { c: c, p: livePos(c, Date.now()) }; }).filter(function (x) { return x.p; });
+  if (!items.length) return;
+  var sec = el('section', 'liverow'), hd = el('h2', 'ptitle2'); hd.appendChild(el('span', 'livedot')); hd.appendChild(document.createTextNode('مباشر الآن')); sec.appendChild(hd);
+  var tr = el('div', 'row livetrack');
+  items.forEach(function (x) {
+    var b = el('button', 'livecard'); b.type = 'button';
+    var th = el('span', 'vthumb'), pic = poster(x.p.v) || poster(titleOf(x.p.v)); if (pic) th.appendChild(img(pic));
+    th.appendChild(el('span', 'livebadge', 'مباشر'));
+    var pr = el('span', 'liveprog'), f = el('span'); f.style.width = Math.min(100, x.p.at / epLen(x.p.v) * 100) + '%'; pr.appendChild(f); th.appendChild(pr);
+    b.appendChild(th); b.appendChild(el('span', 'livech', x.c.name)); b.appendChild(el('span', 'livenow', liveLabel(x.p.v)));
+    b.onclick = function () { playLive(x.c); }; tr.appendChild(b);
+  });
+  sec.appendChild(tr); box.appendChild(sec);
+}
+function liveBlock(box, ch) {
+  var p = livePos(ch, Date.now()); if (!p) return;
+  var sec = el('section', 'livebox');
+  var go = el('button', 'btn primary'); go.type = 'button'; go.appendChild(el('span', 'livedot')); go.appendChild(document.createTextNode('شاهد المباشر · الآن: ' + liveLabel(p.v))); go.onclick = function () { playLive(ch); };
+  sec.appendChild(go);
+  var det = document.createElement('details'), sm = document.createElement('summary'); sm.textContent = 'جدول اليوم (بتوقيت مكة)'; det.appendChild(sm);
+  var ul = el('div', 'livesched'), now = Date.now();
+  det.addEventListener('toggle', function () {
+    if (!det.open || ul.childNodes.length) return;
+    liveToday(ch).forEach(function (e) {
+      var r = el('div', 'lsrow' + (e.start <= now && now < e.end ? ' now' : e.end <= now ? ' past' : ''));
+      r.appendChild(el('b', '', riyadhTime(e.start))); r.appendChild(el('span', '', liveLabel(e.v))); ul.appendChild(r);
+    });
+    var cur_ = ul.querySelector('.now'); if (cur_) ul.scrollTop = Math.max(0, cur_.offsetTop - 120);
+  });
+  det.appendChild(ul); sec.appendChild(det); box.appendChild(sec);
+}
 /* ===== افتتاحية القناة ===== */
 var openedFor = '', opAudio = null;
 function chanOpenOn(ch) { return lget('mk_chopen:' + ch.id) !== 'off'; }
@@ -2508,6 +2587,7 @@ function startVideo(v, st) {
   });
   vd.addEventListener('pause', function () { savePos(v, vd); });
   vd.addEventListener('ended', function () {
+    if (liveCur && liveCur.v === v) { var lc_ = liveCur.ch; setTimeout(function () { if (!$('player').hidden) playLive(lc_); }, 300); return; }
     markDone(v); var a = poses(); delete a[v.id]; jset('pos', a);
     var outs = outroOn() ? introsFor(v, 'outros').filter(canAd) : [];
     if (outs.length) playAd(adPick(outs), st, 'الخاتمة', function () { if (queue[qIndex] === v && !$('player').hidden) upNext(); }, { skipNow: true, skipText: 'تخطي الخاتمة ›' }); else upNext();
@@ -2528,6 +2608,12 @@ function startVideo(v, st) {
     failed = true;
     driveFrame(v, st, 'تعذّر تشغيل الملف هنا، فانتقلت لمشغّل Google Drive. حفظ مكان التوقف لا يعمل في هذا المشغّل.');
   });
+  if (liveCur && liveCur.v === v) {
+    /* المباشر: ندخل على نفس اللحظة اللي يُعرض فيها الآن */
+    var lv = liveCur, seekNow = function () { var p2 = livePos(lv.ch, Date.now()); try { vd.currentTime = p2 && p2.v === v ? p2.at : lv.at; } catch (e) {} vd.play().catch(function () {}); };
+    if (vd.readyState >= 1) seekNow(); else vd.addEventListener('loadedmetadata', seekNow, { once: true });
+    return;
+  }
   var p = posOf(v);
   if (!p) { vd.play().catch(function () {}); return; }
   var box = el('div', 'resume');
@@ -2559,6 +2645,8 @@ document.addEventListener('visibilitychange', function () { if (document.hidden 
 window.addEventListener('pagehide', function () { if (curVideo) savePos(curVideo.v, curVideo.el); });
 function play(i) {
   stopVideo(); stopOpening(); $('skipSet').hidden = true;
+  if (liveCur && liveCur.v !== queue[i]) liveCur = null;
+  var live = liveCur;
   qIndex = i; var v = queue[i], st = $('stage'), t = titleOf(v), d = done();
   st.textContent = '';
   var home_ = t !== v ? t : (v.parent && nodes[v.parent] && v.parent !== rootKey ? nodes[v.parent] : null);
@@ -2569,7 +2657,7 @@ function play(i) {
     pb_.appendChild(document.createTextNode(t !== v ? 'العودة لواجهة المسلسل' : 'العودة لواجهة القناة'));
     pb_.onclick = function () { goTitle(home_); };
   }
-  $('ptitle').textContent = dispSeason(v);
+  $('ptitle').textContent = live ? '🔴 مباشر ' + live.ch.name + ' · ' + liveLabel(v) : dispSeason(v);
   var multi = queue.length > 1;
   $('btnPrev').hidden = $('btnNext').hidden = !multi; $('pstrip').hidden = !multi;
   $('btnPrev').disabled = i === 0; $('btnNext').disabled = i === queue.length - 1;
@@ -2589,9 +2677,9 @@ function play(i) {
   });
   $('openDrive').hidden = demo; if (!demo) $('openDrive').href = 'https://drive.google.com/file/d/' + encodeURIComponent(v.id) + '/view';
   setDlButton(v);
-  var preAds = adPreOn() ? adsFor(v).filter(canAd).filter(function (a) { return a.id !== v.id; }) : [];
+  var preAds = adPreOn() && !live ? adsFor(v).filter(canAd).filter(function (a) { return a.id !== v.id; }) : [];
   /* المقدمة: قبل الحلقة، إلا إذا كنت تكمل من نص الحلقة */
-  var resuming = !!posOf(v);
+  var resuming = !!posOf(v) || !!live;
   var intros = introOn() && !resuming ? introsFor(v, 'intros').filter(canAd) : [];
   function begin(now) { if (queue[qIndex] !== v || (!now && $('player').hidden)) return; if (intros.length) playAd(adPick(intros), st, 'المقدمة', function () { v._introPlayed = true; if (queue[qIndex] === v && !$('player').hidden) startVideo(v, st); }, { skipNow: true, skipText: 'تخطي المقدمة ›' }); else startVideo(v, st); }
   if (preAds.length && (demo || canStream())) playAd(adPick(preAds), st, 'فاصل · الحلقة تبدأ بعده', function () { begin(); });
@@ -2794,7 +2882,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795670211';
+var APP_V = '1795670771';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
