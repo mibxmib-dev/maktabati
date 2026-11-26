@@ -2326,8 +2326,8 @@ function addSkipIntro(st, vd, v, introPlayed) {
   vd.addEventListener('timeupdate', function () {
     var t = vd.currentTime, inside = t >= r.a && t < r.b - 1;
     /* شغّلنا مقدمتك قبل الحلقة، أو التخطي التلقائي شغال: نقفز على طول */
-    /* التخطي التلقائي بس إذا انت حددت مكان الشارة بنفسك، مو بالتخمين */
-    if (inside && !done_ && !r.guess && (introPlayed || autoSkipOn())) { done_ = true; try { vd.currentTime = r.b; } catch (er) {} toast('تخطيت الشارة'); return; }
+    /* بعد ما تشتغل مقدمتك نتخطى شارة الحلقة الأصلية (بطول مقدمتك إذا ما حددتها)؛ التخطي العام بس إذا حددتها بنفسك */
+    if (inside && !done_ && (introPlayed || (autoSkipOn() && !r.guess))) { done_ = true; try { vd.currentTime = r.b; } catch (er) {} toast('تخطيت الشارة'); return; }
     b.hidden = !inside || done_;
   });
 }
@@ -2761,7 +2761,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795660901';
+var APP_V = '1795661791';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
