@@ -2518,7 +2518,8 @@ function startVideo(v, st) {
   var b2 = el('button', 'btn'); b2.type = 'button'; b2.appendChild(icon('M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4', 18)); b2.appendChild(document.createTextNode('ابدأ من البداية'));
   function go(t) { box.remove(); try { vd.currentTime = t; } catch (e) {} vd.play().catch(function () {}); }
   b1.onclick = function () { if (vd.readyState >= 1) go(p.t); else vd.addEventListener('loadedmetadata', function () { go(p.t); }, { once: true }); };
-  b2.onclick = function () { var a = poses(); delete a[v.id]; jset('pos', a); go(0); };
+  /* «ابدأ من البداية»: إذا للمسلسل مقدمة، نشغّلها أول */
+  b2.onclick = function () { var a = poses(); delete a[v.id]; jset('pos', a); if (queue[qIndex] === v && introOn() && introsFor(v, 'intros').filter(canAd).length) play(qIndex); else go(0); };
   acts.appendChild(b1); acts.appendChild(b2); box.appendChild(acts); st.appendChild(box);
 }
 function upNext() {
@@ -2773,7 +2774,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795664302';
+var APP_V = '1795665134';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
