@@ -397,6 +397,13 @@ button.pseries[hidden]{display:none}
 .tapseek.fwd{right:8%}.tapseek.back{left:8%}
 .opctl{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:-4px 0 14px}
 .oppill{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:12px;background:var(--raised);border:1px solid var(--line);border-radius:999px;padding:6px 6px 6px 16px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.skipintro{position:absolute;bottom:64px;right:16px;z-index:7;background:rgba(255,255,255,.92);color:#111;font-weight:700}
+.skipset{background:var(--raised);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:8px 12px;display:flex;flex-direction:column;gap:10px}
+.skipset[hidden]{display:none}
+.skiph{margin:0;font-size:14px;color:var(--muted)}
+.skiprow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.skiprow>span{min-width:6.5em}
+.skiprow>b{min-width:3em;font-variant-numeric:tabular-nums}
 .dubwrap{position:absolute;top:10px;right:122px;z-index:7}
 .dubbtn{position:static;width:auto;gap:6px;padding:0 10px 0 12px;font:inherit;font-size:15px;font-weight:700}
 .dublbl{white-space:nowrap}
@@ -593,7 +600,9 @@ button.pseries[hidden]{display:none}
     <button class="btn small" id="btnPrev" type="button">السابق</button>
     <button class="btn small primary" id="btnDone" type="button"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"></path></svg><span>شاهدتها · التالي</span></button>
     <button class="btn small" id="btnNext" type="button">التالي</button>
+    <button class="btn small" id="btnSkipSet" type="button">ضبط الشارة</button>
   </div>
+  <div class="skipset" id="skipSet" hidden></div>
   <div class="pstrip" id="pstrip" aria-label="الحلقات"></div>
 </div>
 
@@ -1935,12 +1944,13 @@ function renderSettings(box) {
   }
   /* المقدمة والخاتمة */
   var isec = el('section', 'setsec'); isec.appendChild(el('h3', '', 'المقدمة والخاتمة'));
-  [['mk_intro', 'تشغيل المقدمة قبل كل حلقة', introOn], ['mk_outro', 'تشغيل الخاتمة بعد كل حلقة', outroOn]].forEach(function (o) {
+  [['mk_intro', 'تشغيل المقدمة قبل كل حلقة', introOn], ['mk_outro', 'تشغيل الخاتمة بعد كل حلقة', outroOn], ['mk_autoskip', 'تخطي شارة الحلقة تلقائياً', autoSkipOn, 'on']].forEach(function (o) {
     var r = el('div', 'setrow'); r.appendChild(el('span', '', o[1]));
     var w = el('button', 'switch'); w.type = 'button'; w.setAttribute('role', 'switch'); w.setAttribute('aria-label', o[1]); w.setAttribute('aria-checked', String(o[2]()));
-    w.onclick = function () { lset(o[0], o[2]() ? 'off' : null); w.setAttribute('aria-checked', String(o[2]())); };
+    w.onclick = function () { lset(o[0], o[3] ? (o[2]() ? null : 'on') : (o[2]() ? 'off' : null)); w.setAttribute('aria-checked', String(o[2]())); };
     r.appendChild(w); isec.appendChild(r);
   });
+  isec.appendChild(el('p', 'setnote', 'شارة الحلقة: وانت تشاهد اضغط «ضبط الشارة» تحت الفيديو وحدد بدايتها ونهايتها مرة وحدة، ويطلع زر «تخطي الشارة» في كل الحلقات. ولو المقدمة حقتك اشتغلت قبل الحلقة، يتخطى شارتها الأصلية لحاله.'));
   isec.appendChild(el('p', 'setnote', 'حط فيديو المقدمة داخل مجلد اسمه «المقدمة» في مجلد المسلسل أو الموسم. لو فيه أكثر من مقدمة، يختار وحدة عشوائياً كل مرة. فيديو اسمه فيه «خاتمة» أو Outro يشتغل بعد الحلقة. لو تكمل حلقة من نصها، ما تطلع المقدمة. وتقدر تتخطاها على طول.'));
   box.appendChild(isec);
   /* الإعلانات والفواصل */
@@ -2282,6 +2292,48 @@ function playOpening(ch) {
   var fin = playAd(o, full, 'افتتاحية · ' + ch.name, function () { full.remove(); }, { skipNow: true, skipText: 'تخطي ›' });
   full.addEventListener('keydown', function (e) { if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'GoBack') fin(); });
 }
+/* ===== شارة الحلقة (المقدمة اللي داخل الحلقة نفسها): يعرف مكانها ويتخطاها ===== */
+function autoSkipOn() { return lget('mk_autoskip') === 'on'; }
+function skipRange(v) {
+  var t = titleOf(v), r = jget('skip:' + t.id, null);
+  if (r && r.b > r.a) return r;
+  /* ما حددتها؟ إذا فيه مقدمة في مجلد «المقدمة»، نفترض إن الشارة في أول الحلقة وبطولها */
+  var ins = introsFor(v, 'intros'), d = ins.length && ins[0].dur ? ins[0].dur / 1000 : 0;
+  return d > 5 ? { a: 0, b: Math.round(d), guess: true } : null;
+}
+function fmtT(s) { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function addSkipIntro(st, vd, v, introPlayed) {
+  var r = skipRange(v); if (!r) return;
+  var b = el('button', 'btn small skipintro', 'تخطي الشارة ›'); b.type = 'button'; b.hidden = true; st.appendChild(b);
+  var done_ = false;
+  b.onclick = function (e) { e.stopPropagation(); done_ = true; b.hidden = true; try { vd.currentTime = r.b; } catch (er) {} };
+  vd.addEventListener('timeupdate', function () {
+    var t = vd.currentTime, inside = t >= r.a && t < r.b - 1;
+    /* شغّلنا مقدمتك قبل الحلقة، أو التخطي التلقائي شغال: نقفز على طول */
+    if (inside && !done_ && (introPlayed || autoSkipOn())) { done_ = true; try { vd.currentTime = r.b; } catch (er) {} toast('تخطيت الشارة'); return; }
+    b.hidden = !inside || done_;
+  });
+}
+function openSkipSet() {
+  var box = $('skipSet'), cv = curVideo; if (!cv) return;
+  if (!box.hidden) { box.hidden = true; return; }
+  var t = titleOf(cv.v), key = 'skip:' + t.id, r = jget(key, null) || { a: 0, b: 0 };
+  box.textContent = '';
+  box.appendChild(el('p', 'skiph', 'حدد مكان الشارة مرة وحدة، ويتخطاها في كل حلقات «' + tidyTitle(t.name) + '»'));
+  function row(lbl, k) {
+    var rw = el('div', 'skiprow'), val = el('b', '', r[k] ? fmtT(r[k]) : '—'), btn = el('button', 'btn small', 'هنا (' + fmtT(cv.el.currentTime) + ')'); btn.type = 'button';
+    btn.onclick = function () { r[k] = Math.round(cv.el.currentTime); val.textContent = fmtT(r[k]); jset(key, r); toast(lbl + ': ' + fmtT(r[k])); };
+    cv.el.addEventListener('timeupdate', function () { btn.textContent = 'هنا (' + fmtT(cv.el.currentTime) + ')'; });
+    rw.appendChild(el('span', '', lbl)); rw.appendChild(val); rw.appendChild(btn); box.appendChild(rw);
+  }
+  row('بداية الشارة', 'a'); row('نهاية الشارة', 'b');
+  var acts = el('div', 'skiprow'), clr = el('button', 'btn small', 'مسح'), ok = el('button', 'btn small primary', 'تم'); clr.type = ok.type = 'button';
+  clr.onclick = function () { localStorage.removeItem(skey(key)); box.hidden = true; toast('انمسح مكان الشارة'); };
+  ok.onclick = function () { box.hidden = true; };
+  acts.appendChild(clr); acts.appendChild(ok); box.appendChild(acts);
+  box.hidden = false;
+}
+$('btnSkipSet').onclick = openSkipSet;
 function introsFor(n, kind) { var x = nodes[n.parent]; while (x && x.id !== rootKey) { var l = x[kind]; if (l && l.length) return l.map(function (id) { return nodes[id]; }).filter(Boolean); x = nodes[x.parent]; } return []; }
 function introOn() { return lget('mk_intro') !== 'off'; }
 function outroOn() { return lget('mk_outro') !== 'off'; }
@@ -2375,6 +2427,7 @@ function startVideo(v, st) {
   if (v.alts && v.alts.length && !demo) addDub(st, vd, v);
   BG.attach(vd, v);
   if (!IS_TV) addTapSeek(st, vd);
+  addSkipIntro(st, vd, v, !!v._introPlayed); v._introPlayed = false;
   var saved = 0, failed = false;
   /* فيديو بدون صوت؟ غالباً الصوت بصيغة ما يفهمها متصفح الجوال (مثل AC3 أو DTS). نقترح مشغّل قوقل لأنه يحوّل الصوت */
   var audioChecked = false;
@@ -2448,7 +2501,7 @@ function upNext() {
 document.addEventListener('visibilitychange', function () { if (document.hidden && curVideo) savePos(curVideo.v, curVideo.el); });
 window.addEventListener('pagehide', function () { if (curVideo) savePos(curVideo.v, curVideo.el); });
 function play(i) {
-  stopVideo(); stopOpening();
+  stopVideo(); stopOpening(); $('skipSet').hidden = true;
   qIndex = i; var v = queue[i], st = $('stage'), t = titleOf(v), d = done();
   st.textContent = '';
   var home_ = t !== v ? t : (v.parent && nodes[v.parent] && v.parent !== rootKey ? nodes[v.parent] : null);
@@ -2483,7 +2536,7 @@ function play(i) {
   /* المقدمة: قبل الحلقة، إلا إذا كنت تكمل من نص الحلقة */
   var resuming = (poses()[v.id] || {}).t > 10;
   var intros = introOn() && !resuming ? introsFor(v, 'intros').filter(canAd) : [];
-  function begin(now) { if (queue[qIndex] !== v || (!now && $('player').hidden)) return; if (intros.length) playAd(adPick(intros), st, 'المقدمة', function () { if (queue[qIndex] === v && !$('player').hidden) startVideo(v, st); }, { skipNow: true, skipText: 'تخطي المقدمة ›' }); else startVideo(v, st); }
+  function begin(now) { if (queue[qIndex] !== v || (!now && $('player').hidden)) return; if (intros.length) playAd(adPick(intros), st, 'المقدمة', function () { v._introPlayed = true; if (queue[qIndex] === v && !$('player').hidden) startVideo(v, st); }, { skipNow: true, skipText: 'تخطي المقدمة ›' }); else startVideo(v, st); }
   if (preAds.length && (demo || canStream())) playAd(adPick(preAds), st, 'فاصل · الحلقة تبدأ بعده', function () { begin(); });
   else if (demo || canStream() || (isDl(v.id) && swReady())) begin(true);
   else if (offline) st.appendChild(el('div', 'demo', 'هذه الحلقة غير محمّلة. اتصل بالإنترنت لمشاهدتها.'));
@@ -2684,7 +2737,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795652924';
+var APP_V = '1795653340';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
