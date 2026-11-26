@@ -411,6 +411,21 @@ button.pseries[hidden]{display:none}
 .chtab{border:0;background:none;color:var(--muted);font:inherit;font-size:15px;font-weight:700;padding:9px 18px;border-radius:10px;cursor:pointer;display:flex;align-items:center}
 .chtab.on{background:var(--bg);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .chtab .livedot{width:8px;height:8px}
+.reader{position:fixed;inset:0;z-index:60;background:#000;color:#fff;user-select:none;-webkit-user-select:none}
+.reader[hidden]{display:none}
+body.reading{overflow:hidden}
+.rstage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;touch-action:pan-y}
+.rpage{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.rpage[hidden]{display:none}
+.rtop,.rbot{position:absolute;left:0;right:0;display:flex;align-items:center;gap:10px;padding:10px 14px;background:linear-gradient(rgba(0,0,0,.8),rgba(0,0,0,0));opacity:0;pointer-events:none;transition:opacity .2s}
+.rtop{top:0}.rbot{bottom:0;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.85));flex-wrap:wrap;justify-content:center;padding-bottom:max(14px,env(safe-area-inset-bottom))}
+.reader.chrome .rtop,.reader.chrome .rbot{opacity:1;pointer-events:auto}
+.rtop .iconbtn{color:#fff}.rttl{flex:1;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rcnt{font-variant-numeric:tabular-nums;opacity:.85;direction:ltr;unicode-bidi:isolate}
+.rsel{background:#222;color:#fff;border:1px solid #444;border-radius:10px;padding:6px 8px;font:inherit}
+.rtbar{position:absolute;left:0;right:0;bottom:0;height:3px;background:transparent;pointer-events:none}.rtbar span{display:block;height:100%;width:0;background:#e5484d}
+.reader:not(.auto) .rtbar{display:none}
+.rend{position:absolute;inset:auto 16px;max-width:420px;margin:auto;background:rgba(20,20,20,.95);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:12px;text-align:center}
+.rend[hidden]{display:none}
 .livenowcard{display:flex;gap:12px;align-items:stretch;background:var(--raised);border:1px solid rgba(229,72,77,.45);border-radius:14px;padding:10px;color:var(--text);font:inherit;text-align:start;cursor:pointer}
 .lnthumb{flex:0 0 min(130px,32%);aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#000}.lnthumb img{width:100%;height:100%;object-fit:cover}
 .lntext{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}.lntag{color:#e5484d;font-weight:700;font-size:13px}
@@ -784,9 +799,9 @@ function loadKids(id, force) {
   var nd = nodes[id];
   if (nd.kids && !force) return Promise.resolve(nd.kids);
   if (nd.loading) return nd.loading;
-  var ids = [], imgs = [], auds = [];
+  var ids = [], imgs = [], auds = [], pdfs = [];
   function page(tok) {
-    var q = "'" + id + "' in parents and trashed = false and (mimeType = '" + FOLDER_MIME + "' or mimeType contains 'video/' or mimeType contains 'image/' or mimeType contains 'audio/')";
+    var q = "'" + id + "' in parents and trashed = false and (mimeType = '" + FOLDER_MIME + "' or mimeType contains 'video/' or mimeType contains 'image/' or mimeType contains 'audio/' or mimeType = 'application/pdf')";
     var url = 'https://www.googleapis.com/drive/v3/files?pageSize=200&orderBy=folder,name_natural' +
       '&fields=' + encodeURIComponent('nextPageToken,files(id,name,mimeType,thumbnailLink,createdTime,videoMediaMetadata(durationMillis))') +
       '&supportsAllDrives=true&includeItemsFromAllDrives=true&q=' + encodeURIComponent(q) + (tok ? '&pageToken=' + encodeURIComponent(tok) : '');
@@ -799,6 +814,7 @@ function loadKids(id, force) {
       (d.files || []).forEach(function (f) {
         if (f.mimeType.indexOf('image/') === 0) { imgs.push({ id: f.id, name: f.name, thumb: f.thumbnailLink || '' }); return; }
         if (f.mimeType.indexOf('audio/') === 0) { auds.push({ id: f.id, name: f.name }); return; }
+        if (f.mimeType === 'application/pdf') { pdfs.push({ id: f.id, name: f.name, thumb: f.thumbnailLink || '' }); return; }
         var nn = node(f.id, f.name, f.mimeType === FOLDER_MIME, id, f.videoMediaMetadata ? Number(f.videoMediaMetadata.durationMillis) : 0);
         if (f.thumbnailLink && f.mimeType !== FOLDER_MIME) nn.thumb = f.thumbnailLink;
         nn.created = Date.parse(f.createdTime) || 0;
@@ -853,7 +869,7 @@ function loadKids(id, force) {
         (nodes[oid].auds || []).forEach(function (au) { opening.push({ id: au.id, name: au.name, audio: true }); });
       }, function () {}); })))
       .then(function () { nd.ads = ads; nd.intros = intros; nd.outros = outros; nd.opening = opening; nd.auds = auds; attachDubs(a, auds); return a; });
-  }).then(function (a) { nd.kids = dedupe(a); nd.images = imgs; nd.loading = null; return nd.kids; }, function (e) { nd.loading = null; throw e; });
+  }).then(function (a) { nd.kids = dedupe(a); nd.images = imgs; nd.pdfs = pdfs; nd.loading = null; return nd.kids; }, function (e) { nd.loading = null; throw e; });
   return nd.loading;
 }
 /* الدبلجة الثانية: ملف صوت بجانب الحلقة باسمها + رمز اللغة، مثل «Pooh S01E01.eng.m4a» */
@@ -1099,6 +1115,8 @@ function navPush(extra) {
 }
 window.addEventListener('popstate', function (e) {
   var s = e.state || { v: 'home' };
+  if (RD.open) { RD.close(true); if (s.r) return; }
+  if (s.r) { history.back(); return; }
   if (!$('player').hidden) { closePlayer(); if (s.p) return; }
   if (s.p) { history.back(); return; }
   query = ''; $('q').value = '';
@@ -1650,7 +1668,7 @@ function mqLoop(t) {
   MQ.raf = requestAnimationFrame(mqLoop);
 }
 function channels(box) {
-  var cos = kids(rootKey).filter(function (c) { return c.folder && c.kids && !bucketKind(c) && !isTitle(c) && !YT_RE.test(norm(c.name)); });
+  var cos = kids(rootKey).filter(function (c) { return c.folder && c.kids && !bucketKind(c) && !isTitle(c) && !YT_RE.test(norm(c.name)) && !READ_RE.test(norm(c.name)); });
   if (!cos.length) return;
   function mk(c) {
     var b = el('button', 'chan'); b.type = 'button'; b.draggable = false;
@@ -1714,7 +1732,7 @@ function renderHome(box) {
     row(box, 'المفضلة', favs().map(function (f) { return nodes[f.id]; }).filter(function (n) { return n && !isHidden(n.id); }));
     myLists().forEach(function (L) { row(box, L.name, L.items.map(function (i) { return nodes[i.id]; }).filter(function (n) { return n && !isHidden(n.id); })); });
   }
-  var any = false, kinds = filter === 'all' ? ['series', 'movie'] : [filter], label = { series: 'مسلسلات', movie: 'أفلام' }, loose = [], ytTops = [];
+  var any = false, kinds = filter === 'all' ? ['series', 'movie'] : [filter], label = { series: 'مسلسلات', movie: 'أفلام' }, loose = [], ytTops = [], readTops = [];
   kids(rootKey).forEach(function (top) {
     if (isHidden(top.id)) return;
     if (!top.folder) { loose.push(top); return; }
@@ -1723,6 +1741,7 @@ function renderHome(box) {
     if (bk) { if (kinds.indexOf(bk) >= 0) { var tt = titlesUnder(top, bk); if (tt.length) { row(box, top.name, tt, top); any = true; } } return; }
     if (isTitle(top)) { loose.push(top); return; }
     if (YT_RE.test(norm(top.name))) { ytTops.push(top); return; }
+    if (READ_RE.test(norm(top.name))) { readTops.push(top); return; }
     var sec = el('section', 'company'), rows = 0;
     var hd = el('div', 'cohead'), hb = el('button', 'coname'); hb.type = 'button';
     var lp = poster(top); if (lp) { var li = el('span', 'cologo'); li.appendChild(img(lp)); hb.appendChild(li); }
@@ -1736,6 +1755,7 @@ function renderHome(box) {
   });
   if (loose.length && filter === 'all') { row(box, 'أخرى', loose); any = true; }
   /* يوتيوب دائماً في آخر الصفحة */
+  if (filter === 'all') readTops.forEach(function (rt) { if (readSection(box, rt)) any = true; });
   if (filter === 'all') ytTops.forEach(function (yt) { if (ytSection(box, yt)) any = true; });
   if (!any && !crawling) box.appendChild(el('div', 'state', filter === 'all' ? 'لم أجد مجلدات أو ملفات فيديو في المجلد الرئيسي.' : 'لا يوجد شيء في هذا التصنيف بعد.'));
 }
@@ -1882,6 +1902,7 @@ function renderFolder(box) {
   var n = nodes[cur];
   if (opAudio && n.parent !== rootKey) stopOpening();
   if (n.kids && inYT(n)) { ensure(cur); renderYT(box, n); return; }
+  if (n.kids && inRead(n)) { ensure(cur); renderRead(box, n); return; }
   if (!ensure(cur) && !n.kids) { box.appendChild(el('div', 'state', 'جارٍ التحميل…')); return; }
   if (isTitle(n)) { renderTitle(box, n); return; }
   var items = kids(cur), sub = items.filter(function (x) { return x.folder && bucketKind(x); });
@@ -2354,6 +2375,218 @@ function addDub(st, vd, v) {
 }
 /* ===== الإعلانات والفواصل ===== */
 function adsFor(n) { var x = n; while (x && x.id !== rootKey) { if (x.ads && x.ads.length) return x.ads.map(function (id) { return nodes[id]; }).filter(Boolean); x = nodes[x.parent]; } return []; }
+
+/* ===== قسم القراءة: مجلات وقصص ومانغا =====
+   مجلد في الجذر اسمه «مجلات» أو «قصص» أو «مانغا» (أو «قراءة»/«كتب»/Manga/Comics).
+   كل كتاب = مجلد فيه صور الصفحات بالترتيب، أو ملف PDF. ومجلد فيه مجلدات كتب = سلسلة (مثل مانغا بفصولها). */
+var READ_RE = /^(قراء[ةه]|القراء[ةه]|مكتب[ةه] القراء[ةه]|مجل[ةه]|مجلات|المجلات|قص[ةه]|قصص|القصص|مانغا|مانجا|المانغا|المانجا|كتب|الكتب|كوميكس|manga|mangas|comics?|magazines?|stories|books|reading)$/;
+function readRoot(n) { var a = n.id === rootKey ? [] : trail(n.folder ? n.id : n.parent); return a.length && READ_RE.test(norm(a[0].name)) ? a[0] : null; }
+function inRead(n) { return !!readRoot(n); }
+function pagesOf(n) { return (n.images || []).filter(function (i) { return !/^(cover|غلاف|folder|poster)\b/i.test(i.name) || (n.images || []).length < 3; }); }
+function isBook(n) { return n.folder && pagesOf(n).length >= 1 && !kids(n.id).some(function (k) { return k.folder; }); }
+function readCover(n, d) {
+  if (n.pdf) return n.thumb ? { id: n.id, thumb: n.thumb } : null;
+  d = d || 0; var im = n.images || [];
+  var named = im.filter(function (i) { return /(cover|غلاف|poster|folder)/i.test(i.name); })[0]; if (named || im[0]) return named || im[0];
+  if ((n.pdfs || [])[0] && n.pdfs[0].thumb) return n.pdfs[0];
+  if (d > 3) return null;
+  var ks = kids(n.id).filter(function (k) { return k.folder; });
+  for (var i = 0; i < ks.length; i++) { var c = readCover(ks[i], d + 1); if (c) return c; }
+  return null;
+}
+/* عناصر مجلد القراءة: مجلداته + ملفات PDF فيه */
+function readItems(n) {
+  var out = kids(n.id).filter(function (k) { return k.folder && !isHidden(k.id) && (k.kids == null || k.kids.length || (k.images || []).length || (k.pdfs || []).length); });
+  (n.pdfs || []).forEach(function (p) { out.push({ id: p.id, name: p.name.replace(/\.pdf$/i, ''), pdf: true, thumb: p.thumb, parent: n.id }); });
+  return out;
+}
+function rpos() { return jget('rpos', {}); }
+function readMeta(n) {
+  var r = rpos()[n.id];
+  if (n.pdf) return r ? (r.done ? 'قرأتها' : 'صفحة ' + (r.p + 1) + (r.n ? ' من ' + r.n : '')) : 'PDF';
+  if (isBook(n)) { var c = pagesOf(n).length; return r ? (r.done ? 'قرأتها ✓' : 'صفحة ' + (r.p + 1) + ' من ' + c) : c + ' صفحة'; }
+  var it = readItems(n); return it.length ? it.length + (it.length > 10 ? ' عدد' : ' أعداد') : '';
+}
+function readCard(n) {
+  var b = el('button', 'card book'); b.type = 'button';
+  var t = el('span', 'tile'), p = readCover(n); if (p) t.appendChild(img(p));
+  var r = rpos()[n.id]; if (r && !r.done && r.n) { var pr = el('span', 'progline'), f = el('span'); f.style.width = Math.round((r.p + 1) / r.n * 100) + '%'; pr.appendChild(f); t.appendChild(pr); }
+  b.appendChild(t); b.appendChild(el('span', 'name', tidyTitle(n.name))); b.appendChild(el('span', 'meta', readMeta(n) || ' '));
+  b.onclick = function () { readOpen(n); }; return b;
+}
+function readOpen(n) {
+  if (n.pdf || isBook(n)) { RD.start(n); return; }
+  open(n);
+}
+/* الكتب اللي داخل سلسلة، بالترتيب (عشان «التالي») */
+function readSiblings(n) { var par = nodes[n.parent]; return par ? readItems(par).filter(function (k) { return k.pdf || isBook(k); }) : [n]; }
+function readContinue(root) {
+  var R = rpos(), out = [];
+  Object.keys(R).forEach(function (id) {
+    var r = R[id], n = nodes[id] || (r.pdf && nodes[r.parent] ? readItems(nodes[r.parent]).filter(function (x) { return x.id === id; })[0] : null);
+    if (!n || r.done || !(n.pdf || isBook(n))) return; if (root && readRoot(n.pdf ? nodes[n.parent] : n) !== root) return;
+    out.push({ n: n, at: r.at || 0 });
+  });
+  return out.sort(function (a, b) { return b.at - a.at; }).map(function (x) { return x.n; }).slice(0, 12);
+}
+function readSection(box, top) {
+  var items = readItems(top); if (!items.length && !(top.images || []).length) return false;
+  var hd = el('div', 'rowhead'), h2 = el('h2', ''); h2.textContent = '📖 ' + top.name; hd.appendChild(h2);
+  var m = el('button', '', 'عرض الكل'); m.type = 'button'; m.onclick = function () { open(top); }; hd.appendChild(m); box.appendChild(hd);
+  var cont = readContinue(top);
+  if (cont.length) row(box, 'تابع القراءة', cont, null, true, readCard);
+  var r = el('div', 'row'); items.forEach(function (n) { r.appendChild(readCard(n)); }); box.appendChild(r);
+  return true;
+}
+function renderRead(box, n) {
+  box.appendChild(el('h2', 'ptitle2', '📖 ' + n.name));
+  if (isBook(n)) {
+    var go = el('button', 'btn primary'); go.type = 'button'; var r = rpos()[n.id];
+    go.textContent = r && !r.done ? 'كمّل القراءة (صفحة ' + (r.p + 1) + ')' : 'ابدأ القراءة'; go.onclick = function () { RD.start(n); };
+    box.appendChild(go);
+    var g0 = el('div', 'grid pages'); pagesOf(n).forEach(function (pg, i) { var b = el('button', 'card'); b.type = 'button'; var t = el('span', 'tile'); t.appendChild(img(pg)); b.appendChild(t); b.appendChild(el('span', 'meta', 'صفحة ' + (i + 1))); b.onclick = function () { RD.start(n, i); }; g0.appendChild(b); });
+    box.appendChild(g0); return;
+  }
+  var cont = n.parent === rootKey ? readContinue(n) : [];
+  if (cont.length) row(box, 'تابع القراءة', cont, null, true, readCard);
+  var items = readItems(n);
+  if (!items.length) { box.appendChild(el('div', 'state', crawling ? 'جارٍ التحميل…' : 'ما فيه شي هنا. حط صور الصفحات داخل مجلد لكل عدد، أو ملفات PDF.')); return; }
+  var g = el('div', 'grid'); items.forEach(function (k) { g.appendChild(readCard(k)); }); box.appendChild(g);
+}
+
+/* ===== القارئ: تصفح بالضغط أو تلقائي بوقت تختاره ===== */
+var RD = (function () {
+  var me = { open: false }, box, im, cv, bar, cnt, ttl, autoB, timeSel, dirB, tbar, endBox, book, pages = [], p = 0, auto = false, tmr = 0, tick = 0, pdfDoc = null, hideT = 0;
+  function dir() { return lget('mk_rdir') === 'ltr' ? 'ltr' : 'rtl'; }
+  function secs() { return Number(lget('mk_rtime')) || 8; }
+  function build() {
+    box = el('div', 'reader'); box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'القارئ');
+    var stage = el('div', 'rstage'); im = document.createElement('img'); im.className = 'rpage'; im.alt = ''; im.referrerPolicy = 'no-referrer';
+    cv = document.createElement('canvas'); cv.className = 'rpage'; cv.hidden = true;
+    stage.appendChild(im); stage.appendChild(cv);
+    endBox = el('div', 'rend'); endBox.hidden = true; stage.appendChild(endBox);
+    var top = el('div', 'rtop'); var x = el('button', 'iconbtn'); x.type = 'button'; x.setAttribute('aria-label', 'إغلاق'); x.appendChild(icon('M6 6l12 12M18 6L6 18', 22)); x.onclick = function () { me.close(); };
+    ttl = el('span', 'rttl'); cnt = el('span', 'rcnt'); top.appendChild(x); top.appendChild(ttl); top.appendChild(cnt);
+    tbar = el('div', 'rtbar'); tbar.appendChild(el('span'));
+    var bot = el('div', 'rbot');
+    var prevB = el('button', 'btn small', 'السابقة'); prevB.type = 'button'; prevB.onclick = function (e) { e.stopPropagation(); go(-1); };
+    autoB = el('button', 'btn small primary'); autoB.type = 'button'; autoB.onclick = function (e) { e.stopPropagation(); setAuto(!auto); };
+    timeSel = document.createElement('select'); timeSel.className = 'rsel'; timeSel.setAttribute('aria-label', 'وقت الصفحة');
+    [3, 5, 8, 10, 15, 20, 30, 45, 60].forEach(function (s_) { var o = document.createElement('option'); o.value = s_; o.textContent = s_ + ' ث'; timeSel.appendChild(o); });
+    timeSel.onchange = function () { lset('mk_rtime', timeSel.value); if (auto) arm(); }; timeSel.onclick = function (e) { e.stopPropagation(); };
+    dirB = el('button', 'btn small'); dirB.type = 'button'; dirB.onclick = function (e) { e.stopPropagation(); lset('mk_rdir', dir() === 'rtl' ? 'ltr' : null); dirLbl(); };
+    var nextB = el('button', 'btn small', 'التالية'); nextB.type = 'button'; nextB.onclick = function (e) { e.stopPropagation(); go(1); };
+    [nextB, autoB, timeSel, dirB, prevB].forEach(function (b) { bot.appendChild(b); });
+    box.appendChild(stage); box.appendChild(top); box.appendChild(tbar); box.appendChild(bot);
+    /* الضغط: طرف الشاشة يقلب، والوسط يظهر/يخفي الأزرار */
+    stage.addEventListener('click', function (e) {
+      if (e.target.closest('.rend')) return;
+      var w = stage.clientWidth, x_ = e.clientX - stage.getBoundingClientRect().left, z = x_ < w * 0.35 ? 'L' : x_ > w * 0.65 ? 'R' : 'M';
+      if (z === 'M') { box.classList.toggle('chrome'); return; }
+      go((z === 'L') === (dir() === 'rtl') ? 1 : -1);
+    });
+    var sx = 0, sy = 0;
+    stage.addEventListener('touchstart', function (e) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+    stage.addEventListener('touchend', function (e) {
+      var dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) { e.preventDefault(); go((dx > 0) === (dir() === 'rtl') ? 1 : -1); }
+    });
+    document.addEventListener('keydown', function (e) {
+      if (!me.open) return;
+      var k = e.key;
+      if (k === 'Escape' || k === 'Backspace' || k === 'GoBack') { e.preventDefault(); me.close(); return; }
+      if (k === 'ArrowLeft' || k === 'ArrowRight') { e.preventDefault(); go((k === 'ArrowLeft') === (dir() === 'rtl') ? 1 : -1); return; }
+      if (k === ' ' || k === 'MediaPlayPause') { e.preventDefault(); setAuto(!auto); return; }
+      if (k === 'Enter' && document.activeElement === document.body) { e.preventDefault(); setAuto(!auto); }
+    }, true);
+    document.body.appendChild(box);
+  }
+  function dirLbl() { dirB.textContent = dir() === 'rtl' ? 'الاتجاه: عربي/مانغا ←' : 'الاتجاه: إنجليزي →'; }
+  function lbl() { autoB.textContent = auto ? '⏸ إيقاف التلقائي' : '▶ تصفح تلقائي'; box.classList.toggle('auto', auto); }
+  var wl = null;
+  function setAuto(on) {
+    auto = on; lset('mk_rauto', on ? '1' : null); lbl(); clearTimeout(tmr); clearInterval(tick); tbar.firstChild.style.width = '0';
+    if (on) { arm(); try { navigator.wakeLock && navigator.wakeLock.request('screen').then(function (w) { wl = w; }, function () {}); } catch (e) {} box.classList.remove('chrome'); }
+    else if (wl) { try { wl.release(); } catch (e) {} wl = null; }
+  }
+  function arm() {
+    clearTimeout(tmr); clearInterval(tick); var ms = secs() * 1000, t0 = Date.now(), f = tbar.firstChild;
+    tick = setInterval(function () { f.style.width = Math.min(100, (Date.now() - t0) / ms * 100) + '%'; }, 100);
+    tmr = setTimeout(function () { if (!me.open || !auto) return; if (p < pages.length - 1) go(1); else nextBook(); }, ms);
+  }
+  function src(pg) { return (demo || !token) ? (pg.thumb || '') : pg.thumb ? pg.thumb.replace(/=s\d+$/, '=s2000') : 'stream/' + encodeURIComponent(pg.id) + '?t=' + encodeURIComponent(token); }
+  function show() {
+    endBox.hidden = true; var n = pages.length;
+    cnt.textContent = (p + 1) + ' / ' + (n || '…');
+    if (pdfDoc) {
+      im.hidden = true; cv.hidden = false;
+      pdfDoc.getPage(p + 1).then(function (pg) {
+        var vp0 = pg.getViewport({ scale: 1 }), sc = Math.min(box.clientWidth / vp0.width, box.clientHeight / vp0.height) * (window.devicePixelRatio || 1), vp = pg.getViewport({ scale: sc });
+        cv.width = vp.width; cv.height = vp.height; return pg.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+      }).catch(function () {});
+    } else {
+      cv.hidden = true; im.hidden = false; var pg = pages[p], tried = false;
+      im.onerror = function () { if (tried || demo || !token) return; tried = true; im.src = 'stream/' + encodeURIComponent(pg.id) + '?t=' + encodeURIComponent(token); };
+      im.src = src(pg);
+      [1, 2].forEach(function (d) { if (pages[p + d]) { var pre = new Image(); pre.referrerPolicy = 'no-referrer'; pre.src = src(pages[p + d]); } });
+    }
+    save(false);
+    if (auto) arm();
+  }
+  function save(done) {
+    var R = rpos(); R[book.id] = { p: p, n: pages.length, at: Date.now(), done: !!done, pdf: !!book.pdf, parent: book.parent }; jset('rpos', R);
+  }
+  function go(d) {
+    if (!pages.length) return;
+    if (p + d >= pages.length) { nextBook(); return; }
+    if (p + d < 0) return;
+    p += d; show();
+  }
+  function nextBook() {
+    save(true); clearTimeout(tmr); clearInterval(tick);
+    var sib = readSiblings(book), i = -1; sib.forEach(function (k, j) { if (k.id === book.id) i = j; });
+    var nx = i >= 0 ? sib[i + 1] : null;
+    endBox.textContent = ''; endBox.hidden = false;
+    endBox.appendChild(el('b', '', 'انتهى «' + tidyTitle(book.name) + '»'));
+    if (nx) {
+      endBox.appendChild(el('span', '', 'التالي: ' + tidyTitle(nx.name)));
+      var b = el('button', 'btn primary', 'اقرأ التالي'); b.type = 'button'; b.onclick = function () { me.start(nx, 0, true); }; endBox.appendChild(b);
+      if (auto) { var f = tbar.firstChild, ms = secs() * 1000, t0 = Date.now(); tick = setInterval(function () { f.style.width = Math.min(100, (Date.now() - t0) / ms * 100) + '%'; }, 100); tmr = setTimeout(function () { if (me.open && auto) me.start(nx, 0, true); }, ms); }
+    }
+    var c = el('button', 'btn', 'إغلاق'); c.type = 'button'; c.onclick = function () { me.close(); }; endBox.appendChild(c);
+  }
+  function loadPdf(n) {
+    function go_() {
+      var u = demo ? '' : 'stream/' + encodeURIComponent(n.id) + '?t=' + encodeURIComponent(token || '');
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      window.pdfjsLib.getDocument({ url: u }).promise.then(function (d) {
+        if (book !== n) return; pdfDoc = d; pages = []; for (var i = 0; i < d.numPages; i++) pages.push({ i: i });
+        if (p >= pages.length) p = 0; show();
+      }, fail);
+    }
+    function fail() { if (book !== n) return; endBox.textContent = ''; endBox.hidden = false; endBox.appendChild(el('b', '', 'تعذّر فتح ملف PDF هنا.')); endBox.appendChild(el('span', '', 'جرّب تحفظ صفحاته كصور داخل مجلد، تكون أخف وأسرع.')); }
+    if (window.pdfjsLib) { go_(); return; }
+    var sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'; sc.onload = go_; sc.onerror = fail; document.head.appendChild(sc);
+  }
+  me.start = function (n, at, keepAuto) {
+    if (!box) build();
+    var wasOpen = me.open; book = n; pdfDoc = null; pages = []; me.open = true; box.hidden = false; document.body.classList.add('reading');
+    if (!wasOpen) { try { history.pushState({ r: 1, v: view, cur: cur, f: filter, y: window.scrollY }, ''); } catch (e) {} }
+    ttl.textContent = tidyTitle(n.name); timeSel.value = String(secs()); dirLbl();
+    var r = rpos()[n.id]; p = at != null ? at : (r && !r.done ? r.p : 0);
+    if (!keepAuto) auto = lget('mk_rauto') === '1'; lbl();
+    box.classList.add('chrome'); clearTimeout(hideT); hideT = setTimeout(function () { box.classList.remove('chrome'); }, 2500);
+    if (n.pdf) { cnt.textContent = '…'; im.hidden = true; endBox.hidden = true; loadPdf(n); }
+    else { pages = pagesOf(n); if (p >= pages.length) p = 0; show(); }
+    if (auto) setAuto(true);
+  };
+  me.close = function (fromPop) {
+    if (!me.open) return; me.open = false; clearTimeout(tmr); clearInterval(tick); if (wl) { try { wl.release(); } catch (e) {} wl = null; }
+    box.hidden = true; document.body.classList.remove('reading'); im.removeAttribute('src');
+    if (!fromPop && history.state && history.state.r) history.back(); else { lastRKey = ''; render(); }
+  };
+  return me;
+})();
 /* ===== مباشر: جدول بث يومي لكل قناة بتوقيت مكة؛ أي أحد يفتح المباشر يشوف نفس اللي يُعرض الآن ===== */
 var LIVE_EPOCH = Date.UTC(2026, 9, 31, 21, 0, 0); /* منتصف ليل ١ نوفمبر ٢٠٢٦ بتوقيت مكة */
 var DAY = 864e5, liveCur = null;
@@ -2409,7 +2642,7 @@ function liveNext(lv, vd) {
   } else playLive(lv.ch);
 }
 function liveRow(box) {
-  var cos = kids(rootKey).filter(function (c) { return c.folder && c.kids && !bucketKind(c) && !isTitle(c) && !YT_RE.test(norm(c.name)) && !isHidden(c.id); });
+  var cos = kids(rootKey).filter(function (c) { return c.folder && c.kids && !bucketKind(c) && !isTitle(c) && !YT_RE.test(norm(c.name)) && !READ_RE.test(norm(c.name)) && !isHidden(c.id); });
   var items = cos.map(function (c) { return { c: c, p: livePos(c, Date.now()) }; }).filter(function (x) { return x.p; });
   if (!items.length) return;
   var sec = el('section', 'liverow'), hd = el('h2', 'ptitle2'); hd.appendChild(el('span', 'livedot')); hd.appendChild(document.createTextNode('مباشر الآن')); sec.appendChild(hd);
@@ -2951,7 +3184,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795671899';
+var APP_V = '1795673035';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
