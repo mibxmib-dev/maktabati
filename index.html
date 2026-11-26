@@ -937,8 +937,11 @@ function summary(n) {
 function eps_(n) { return n === 1 ? 'حلقة واحدة' : n === 2 ? 'حلقتان' : n <= 10 ? n + ' حلقات' : n + ' حلقة'; }
 function seas_(n) { return n === 2 ? 'موسمان' : n <= 10 ? n + ' مواسم' : n + ' موسماً'; }
 /* الاسم المعروض: داخل مسلسل «الحلقة 1»، وغير ذلك اسم نظيف */
+/* اليوتيوب: اسم الحلقة هو اسم الملف كما هو (بدون الامتداد) */
+function ytName(v) { return v.name.replace(/\.[a-z0-9]{2,4}$/i, ''); }
 function disp(v) {
   if (v.label) return v.label;
+  if (!v.folder && inYT(v)) return ytName(v);
   if (v.folder) return tidyTitle(v.name);
   var t = titleOf(v), i = epInfo(v.name);
   if (t !== v && i) return 'الحلقة ' + i.e;
@@ -948,6 +951,7 @@ function disp(v) {
 }
 function dispSeason(v) {
   if (v.labelLong) return v.labelLong;
+  if (!v.folder && inYT(v)) return ytName(v);
   var t = titleOf(v);
   if (t === v || !t.folder) return disp(v);
   var gs = groups(t);
@@ -958,6 +962,7 @@ function dispSeason(v) {
   return (g ? g.name + ' · ' : '') + disp(v);
 }
 function dispLong(v) {
+  if (!v.folder && inYT(v)) return ytName(v);
   var i = epInfo(v.name), t = titleOf(v);
   if (t !== v && i && !i.s) { var gs0 = groups(t), g0 = gs0.length > 1 && gs0.filter(function (x) { return x.eps.indexOf(v) >= 0; })[0]; if (g0) return g0.name + ' · الحلقة ' + i.e; }
   if (t !== v && i) return (i.s ? 'الموسم ' + i.s + ' · ' : '') + 'الحلقة ' + i.e;
@@ -2630,7 +2635,7 @@ function liveToday(ch) {
   while (t < mid + DAY && out.length < 300) { var v = p.list[k]; out.push({ v: v, start: t, end: t + epLen(v) * 1000 }); t += epLen(v) * 1000; k = (k + 1) % p.list.length; }
   return out;
 }
-function liveLabel(v) { if (inYT(v)) { var sx = nodes[v.parent], cr = ytCreator(v); return (sx && cr && sx.id !== cr.id ? sx.name + ' · ' : '') + disp(v); } var t = titleOf(v); return (t !== v ? tidyTitle(t.name) + ' · ' + dispLong(v) : disp(v)); }
+function liveLabel(v) { if (inYT(v)) return ytName(v); var t = titleOf(v); return (t !== v ? tidyTitle(t.name) + ' · ' + dispLong(v) : disp(v)); }
 function playLive(ch) {
   var p = livePos(ch, Date.now()); if (!p) { toast('ما فيه حلقات في القناة للبث'); return; }
   liveCur = { ch: ch, v: p.v, at: p.at, start: p.start, i: p.i, list: p.list, now: true }; queue = [p.v]; play(0);
@@ -3204,7 +3209,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795715333';
+var APP_V = '1795718147';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
