@@ -1729,6 +1729,12 @@ function renderTitle(box, t) {
   if (kind === 'series') { if (gs.length > 1) meta.push(seas_(gs.length)); meta.push(eps_(eps.length)); }
   else if (eps.length === 1 && eps[0].dur) meta.push(fmt(eps[0].dur));
   info.appendChild(el('p', 'tmeta', meta.join(' · ')));
+  /* نوضح إذا التطبيق لقى مقدمة/خاتمة لهذا المسلسل */
+  if (eps.length) { var ins_ = introsFor(eps[0], 'intros'), outs_ = introsFor(eps[0], 'outros'), xs = [];
+    if (ins_.length) xs.push('المقدمة: ' + ins_.map(function (x) { return clean(x.name); }).join('، ') + (introOn() ? '' : ' (مقفلة من الإعدادات)'));
+    if (outs_.length) xs.push('الخاتمة: ' + outs_.map(function (x) { return clean(x.name); }).join('، '));
+    if (xs.length) info.appendChild(el('p', 'tmeta introinfo', '🎬 ' + xs.join(' · ')));
+  }
   var acts = el('div', 'tacts');
   if (r.ep) {
     var pb = el('button', 'btn primary'); pb.type = 'button'; pb.appendChild(icon('M8 5v14l11-7z', 18, true));
@@ -1959,7 +1965,8 @@ function renderSettings(box) {
     box.appendChild(bs);
   }
   /* المقدمة والخاتمة */
-  var isec = el('section', 'setsec'); isec.appendChild(el('h3', '', 'المقدمة والخاتمة'));
+  var isec = el('section', 'setsec');
+  box.appendChild(el('p', 'setnote', 'نسخة التطبيق: ' + new Date(Number(APP_V) * 1000).toLocaleString('ar-SA-u-nu-latn', { dateStyle: 'medium', timeStyle: 'short' }))); isec.appendChild(el('h3', '', 'المقدمة والخاتمة'));
   [['mk_intro', 'تشغيل المقدمة قبل كل حلقة', introOn], ['mk_outro', 'تشغيل الخاتمة بعد كل حلقة', outroOn], ['mk_autoskip', 'تخطي شارة الحلقة تلقائياً', autoSkipOn, 'on']].forEach(function (o) {
     var r = el('div', 'setrow'); r.appendChild(el('span', '', o[1]));
     var w = el('button', 'switch'); w.type = 'button'; w.setAttribute('role', 'switch'); w.setAttribute('aria-label', o[1]); w.setAttribute('aria-checked', String(o[2]()));
@@ -2558,7 +2565,7 @@ function play(i) {
   setDlButton(v);
   var preAds = adPreOn() ? adsFor(v).filter(canAd).filter(function (a) { return a.id !== v.id; }) : [];
   /* المقدمة: قبل الحلقة، إلا إذا كنت تكمل من نص الحلقة */
-  var resuming = (poses()[v.id] || {}).t > 10;
+  var resuming = !!posOf(v);
   var intros = introOn() && !resuming ? introsFor(v, 'intros').filter(canAd) : [];
   function begin(now) { if (queue[qIndex] !== v || (!now && $('player').hidden)) return; if (intros.length) playAd(adPick(intros), st, 'المقدمة', function () { v._introPlayed = true; if (queue[qIndex] === v && !$('player').hidden) startVideo(v, st); }, { skipNow: true, skipText: 'تخطي المقدمة ›' }); else startVideo(v, st); }
   if (preAds.length && (demo || canStream())) playAd(adPick(preAds), st, 'فاصل · الحلقة تبدأ بعده', function () { begin(); });
@@ -2761,7 +2768,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795661791';
+var APP_V = '1795662177';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
