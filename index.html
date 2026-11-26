@@ -397,6 +397,9 @@ button.pseries[hidden]{display:none}
 .tapseek.fwd{right:8%}.tapseek.back{left:8%}
 .opctl{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:-4px 0 14px}
 .oppill{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:12px;background:var(--raised);border:1px solid var(--line);border-radius:999px;padding:6px 6px 6px 16px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.livepill{position:absolute;top:12px;left:12px;z-index:7;border:0;border-radius:999px;padding:5px 12px;font:inherit;font-size:13px;font-weight:700;background:#e5484d;color:#fff}
+.livepill.behind{background:rgba(0,0,0,.7);color:#fff;cursor:pointer;border:1px solid #e5484d}
+.livepill:disabled{cursor:default}
 .skipintro{position:absolute;bottom:64px;right:16px;z-index:7;background:rgba(255,255,255,.92);color:#111;font-weight:700}
 .skipset{background:var(--raised);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:8px 12px;display:flex;flex-direction:column;gap:10px}
 .skipset[hidden]{display:none}
@@ -2249,7 +2252,7 @@ var BG = (function () {
     } catch (e) {}
   }
   function state() { try { if ('mediaSession' in navigator) { var x = target(); navigator.mediaSession.playbackState = x && !x.paused ? 'playing' : 'paused'; } } catch (e) {} }
-  function seek(d) { var x = target(); if (!x) return; try { x.currentTime = Math.max(0, x.currentTime + d); if (x !== vd && vd) vd.currentTime = x.currentTime; } catch (e) {} }
+  function seek(d) { var x = target(); if (!x) return; try { var to = Math.max(0, x.currentTime + d); if (liveCur && liveCur.v === v) to = Math.min(to, Math.max(0, liveEdge(liveCur))); x.currentTime = to; if (x !== vd && vd) vd.currentTime = x.currentTime; } catch (e) {} }
   if ('mediaSession' in navigator) {
     var H = {
       play: function () { userPause = false; if (au) au.play().catch(function () {}); else if (curDub && document.hidden) curDub.play().catch(function () {}); else if (vd) vd.play().catch(function () {}); setTimeout(state, 50); },
@@ -2363,7 +2366,32 @@ function liveToday(ch) {
 function liveLabel(v) { var t = titleOf(v); return (t !== v ? tidyTitle(t.name) + ' · ' + dispLong(v) : disp(v)); }
 function playLive(ch) {
   var p = livePos(ch, Date.now()); if (!p) { toast('ما فيه حلقات في القناة للبث'); return; }
-  liveCur = { ch: ch, v: p.v, at: p.at }; queue = [p.v]; play(0);
+  liveCur = { ch: ch, v: p.v, at: p.at, start: p.start, i: p.i, list: p.list, now: true }; queue = [p.v]; play(0);
+}
+/* حافة البث: أبعد ثانية مسموحة الحين في الحلقة (ما أحد يقدّم أبعد من اللي يُعرض) */
+function liveEdge(lv) { return (Date.now() - lv.start) / 1000; }
+function liveGuard(st, vd, v, lv) {
+  var pill = el('button', 'livepill'); pill.type = 'button'; st.appendChild(pill);
+  function clamp() { var e = liveEdge(lv); if (vd.currentTime > e + 1.5) { try { vd.currentTime = Math.max(0, e); } catch (x) {} } }
+  vd.addEventListener('seeking', clamp); vd.addEventListener('timeupdate', clamp);
+  vd.addEventListener('ratechange', function () { if (vd.playbackRate > 1) vd.playbackRate = 1; });
+  function upd() {
+    if (!pill.isConnected) { clearInterval(iv); return; }
+    var lag = liveEdge(lv) - vd.currentTime;
+    if (lag > 8) { pill.className = 'livepill behind'; pill.textContent = '⏪ متأخر ' + clock(lag) + ' · ارجع للمباشر'; pill.disabled = false; }
+    else { pill.className = 'livepill'; pill.textContent = '● مباشر'; pill.disabled = true; }
+  }
+  pill.onclick = function () { if (livePos(lv.ch, Date.now()).v === v) { try { vd.currentTime = liveEdge(lv); } catch (x) {} vd.play().catch(function () {}); } else playLive(lv.ch); };
+  var iv = setInterval(upd, 1000); vd.addEventListener('seeked', upd); upd();
+}
+/* بعد ما تخلص الحلقة: إذا كنت متأخر تكمل اللي بعدها من بدايتها (تتابع اللي فاتك)، وإلا ترجع للمباشر */
+function liveNext(lv, vd) {
+  var len = epLen(lv.v), behind = liveEdge(lv) - (vd && isFinite(vd.duration) ? vd.duration : len);
+  if (behind > 30 && lv.list) {
+    var k = (lv.i + 1) % lv.list.length, nv = lv.list[k];
+    liveCur = { ch: lv.ch, v: nv, at: 0, start: lv.start + len * 1000, i: k, list: lv.list, now: false };
+    queue = [nv]; play(0);
+  } else playLive(lv.ch);
 }
 function liveRow(box) {
   var cos = kids(rootKey).filter(function (c) { return c.folder && c.kids && !bucketKind(c) && !isTitle(c) && !YT_RE.test(norm(c.name)) && !isHidden(c.id); });
@@ -2587,7 +2615,8 @@ function startVideo(v, st) {
   if (v.alts && v.alts.length && !demo) addDub(st, vd, v);
   BG.attach(vd, v);
   if (!IS_TV) addTapSeek(st, vd);
-  addSkipIntro(st, vd, v, !!v._introPlayed); v._introPlayed = false;
+  if (liveCur && liveCur.v === v) liveGuard(st, vd, v, liveCur); else addSkipIntro(st, vd, v, !!v._introPlayed);
+  v._introPlayed = false;
   var saved = 0, failed = false;
   /* فيديو بدون صوت؟ غالباً الصوت بصيغة ما يفهمها متصفح الجوال (مثل AC3 أو DTS). نقترح مشغّل قوقل لأنه يحوّل الصوت */
   var audioChecked = false;
@@ -2612,7 +2641,7 @@ function startVideo(v, st) {
   });
   vd.addEventListener('pause', function () { savePos(v, vd); });
   vd.addEventListener('ended', function () {
-    if (liveCur && liveCur.v === v) { var lc_ = liveCur.ch; setTimeout(function () { if (!$('player').hidden) playLive(lc_); }, 300); return; }
+    if (liveCur && liveCur.v === v) { var lv_ = liveCur; setTimeout(function () { if (!$('player').hidden) liveNext(lv_, vd); }, 300); return; }
     markDone(v); var a = poses(); delete a[v.id]; jset('pos', a);
     var outs = outroOn() ? introsFor(v, 'outros').filter(canAd) : [];
     if (outs.length) playAd(adPick(outs), st, 'الخاتمة', function () { if (queue[qIndex] === v && !$('player').hidden) upNext(); }, { skipNow: true, skipText: 'تخطي الخاتمة ›' }); else upNext();
@@ -2635,7 +2664,7 @@ function startVideo(v, st) {
   });
   if (liveCur && liveCur.v === v) {
     /* المباشر: ندخل على نفس اللحظة اللي يُعرض فيها الآن */
-    var lv = liveCur, seekNow = function () { var p2 = livePos(lv.ch, Date.now()); try { vd.currentTime = p2 && p2.v === v ? p2.at : lv.at; } catch (e) {} vd.play().catch(function () {}); };
+    var lv = liveCur, seekNow = function () { try { vd.currentTime = lv.now ? Math.max(0, liveEdge(lv)) : lv.at; } catch (e) {} vd.play().catch(function () {}); };
     if (vd.readyState >= 1) seekNow(); else vd.addEventListener('loadedmetadata', seekNow, { once: true });
     return;
   }
@@ -2907,7 +2936,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795671061';
+var APP_V = '1795671754';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
