@@ -786,6 +786,14 @@ function loadKids(id, force) {
     var inDirs = a.filter(function (k) { return nodes[k] && nodes[k].folder && adDirs.indexOf(k) < 0 && opDirs.indexOf(k) < 0 && INTRO_DIR.test(nodes[k].name.trim()); });
     a = a.filter(function (k) { return picDirs.indexOf(k) < 0 && adDirs.indexOf(k) < 0 && inDirs.indexOf(k) < 0 && opDirs.indexOf(k) < 0; });
     var ads = [], intros = [], outros = [], opening = [];
+    /* فيديو المقدمة أو الخاتمة محطوط مع الحلقات مباشرة (بدون مجلد): قصير واسمه فيه مقدمة/Intro أو خاتمة/Outro */
+    a = a.filter(function (k) {
+      var f = nodes[k]; if (!f || f.folder) return true;
+      var short = !f.dur || f.dur < 360000, nm = clean(f.name);
+      if (short && /(مقدم|intro|opening|theme song|شار[ةه] البداي)/i.test(nm)) { intros.push(k); return false; }
+      if (short && /(خاتم|ختام|outro|closing|end credits)/i.test(nm)) { outros.push(k); return false; }
+      return true;
+    });
     return Promise.all(picDirs.map(function (pid) { return loadKids(pid, force).then(function (k) {
       /* اسمه يشبه مجلد صور بس فيه فيديوهات (مثل مسلسل اسمه Undercover)؟ يرجع مجلد عادي */
       if ((k || []).some(function (x) { return nodes[x] && !nodes[x].folder; })) { a.push(pid); return; }
@@ -2753,7 +2761,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795655986';
+var APP_V = '1795660901';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
