@@ -762,14 +762,20 @@ function loadKids(id, force) {
     var picDirs = a.filter(function (k) { return nodes[k] && nodes[k].folder && PICS.test(nodes[k].name.trim()); });
     /* مجلد اسمه «إعلان» داخل المسلسل: فيديوهاته إعلانات وفواصل، وما يطلع كموسم */
     var adDirs = a.filter(function (k) { return nodes[k] && nodes[k].folder && ADS_RE.test(nodes[k].name.trim()); });
-    a = a.filter(function (k) { return picDirs.indexOf(k) < 0 && adDirs.indexOf(k) < 0; });
-    var ads = [];
+    /* مجلد «المقدمة» (أو Intro / Intro+Outro / الخاتمة): مقدمة تشتغل قبل كل حلقة، وخاتمة بعدها */
+    var inDirs = a.filter(function (k) { return nodes[k] && nodes[k].folder && adDirs.indexOf(k) < 0 && INTRO_DIR.test(nodes[k].name.trim()); });
+    a = a.filter(function (k) { return picDirs.indexOf(k) < 0 && adDirs.indexOf(k) < 0 && inDirs.indexOf(k) < 0; });
+    var ads = [], intros = [], outros = [];
     return Promise.all(picDirs.map(function (pid) { return loadKids(pid, force).then(function (k) {
       /* اسمه يشبه مجلد صور بس فيه فيديوهات (مثل مسلسل اسمه Undercover)؟ يرجع مجلد عادي */
       if ((k || []).some(function (x) { return nodes[x] && !nodes[x].folder; })) { a.push(pid); return; }
       imgs = imgs.concat(nodes[pid].images || []); }, function () {}); })
-      .concat(adDirs.map(function (aid) { return loadKids(aid, force).then(function (k) { k.forEach(function (x) { if (nodes[x] && !nodes[x].folder) ads.push(x); }); }, function () {}); })))
-      .then(function () { nd.ads = ads; attachDubs(a, auds); return a; });
+      .concat(adDirs.map(function (aid) { return loadKids(aid, force).then(function (k) { k.forEach(function (x) { if (nodes[x] && !nodes[x].folder) ads.push(x); }); }, function () {}); }))
+      .concat(inDirs.map(function (iid) { return loadKids(iid, force).then(function (k) {
+        var dirOut = OUTRO_RE.test(nodes[iid].name) && !/(مقدم|intro|opening|شار)/i.test(nodes[iid].name);
+        k.forEach(function (x) { if (nodes[x] && !nodes[x].folder) (dirOut || OUTRO_RE.test(nodes[x].name) ? outros : intros).push(x); });
+      }, function () {}); })))
+      .then(function () { nd.ads = ads; nd.intros = intros; nd.outros = outros; attachDubs(a, auds); return a; });
   }).then(function (a) { nd.kids = dedupe(a); nd.images = imgs; nd.loading = null; return nd.kids; }, function (e) { nd.loading = null; throw e; });
   return nd.loading;
 }
@@ -786,6 +792,7 @@ function attachDubs(ids, auds) {
     v.alts = (v.alts || []).filter(function (x) { return x.id !== a.id; }); v.alts.push({ id: a.id, lang: m[2].toLowerCase() });
   });
 }
+var INTRO_DIR = /(مقدم|intro|opening|شار[ةه]|outro|خاتم|ختام)/i, OUTRO_RE = /(outro|closing|ending|end credits|خاتم|ختام|نهاي)/i;
 var ADS_RE = /^(إعلان|اعلان|إعلانات|اعلانات|فاصل|فواصل|الفواصل|promo|promos|ad|ads)$/i;
 /* إذا نفس الحلقة موجودة بصيغتين (مثلاً Doug 30.mp4 و Doug 30.mpg) نعرض وحدة بس، ونفضّل MP4 لأنها تشتغل بمشغّل التطبيق */
 function dedupe(ids) {
@@ -1898,6 +1905,16 @@ function renderSettings(box) {
     bs.appendChild(el('p', 'setnote', 'تقدر توقّف وتكمّل وتقدّم 10 ثواني وتروح للحلقة الجاية من شاشة القفل. لما ترجع للتطبيق، الفيديو يكمل من نفس المكان.'));
     box.appendChild(bs);
   }
+  /* المقدمة والخاتمة */
+  var isec = el('section', 'setsec'); isec.appendChild(el('h3', '', 'المقدمة والخاتمة'));
+  [['mk_intro', 'تشغيل المقدمة قبل كل حلقة', introOn], ['mk_outro', 'تشغيل الخاتمة بعد كل حلقة', outroOn]].forEach(function (o) {
+    var r = el('div', 'setrow'); r.appendChild(el('span', '', o[1]));
+    var w = el('button', 'switch'); w.type = 'button'; w.setAttribute('role', 'switch'); w.setAttribute('aria-label', o[1]); w.setAttribute('aria-checked', String(o[2]()));
+    w.onclick = function () { lset(o[0], o[2]() ? 'off' : null); w.setAttribute('aria-checked', String(o[2]())); };
+    r.appendChild(w); isec.appendChild(r);
+  });
+  isec.appendChild(el('p', 'setnote', 'حط فيديو المقدمة داخل مجلد اسمه «المقدمة» في مجلد المسلسل أو الموسم. لو فيه أكثر من مقدمة، يختار وحدة عشوائياً كل مرة. فيديو اسمه فيه «خاتمة» أو Outro يشتغل بعد الحلقة. لو تكمل حلقة من نصها، ما تطلع المقدمة. وتقدر تتخطاها على طول.'));
+  box.appendChild(isec);
   /* الإعلانات والفواصل */
   var as = el('section', 'setsec'); as.appendChild(el('h3', '', 'الإعلانات والفواصل'));
   var ar = el('div', 'setrow'); var al = el('label', '', 'إعلان إذا تركت صفحة المسلسل بدون حركة'); al.htmlFor = 'adIdleSel'; ar.appendChild(al);
@@ -2216,6 +2233,9 @@ function addDub(st, vd, v) {
 }
 /* ===== الإعلانات والفواصل ===== */
 function adsFor(n) { var x = n; while (x && x.id !== rootKey) { if (x.ads && x.ads.length) return x.ads.map(function (id) { return nodes[id]; }).filter(Boolean); x = nodes[x.parent]; } return []; }
+function introsFor(n, kind) { var x = nodes[n.parent]; while (x && x.id !== rootKey) { var l = x[kind]; if (l && l.length) return l.map(function (id) { return nodes[id]; }).filter(Boolean); x = nodes[x.parent]; } return []; }
+function introOn() { return lget('mk_intro') !== 'off'; }
+function outroOn() { return lget('mk_outro') !== 'off'; }
 function adPick(list) { return list[Math.floor(Math.random() * list.length)]; }
 function adIdleMode() { return lget('mk_adidle') || 'once'; }
 function adPreOn() { return lget('mk_adpre') === 'on'; }
@@ -2224,18 +2244,19 @@ function canAd(a) { return a && !offline && (demo || canStream() || (isDl(a.id) 
 var curAd = null;
 function endAd() { if (curAd) { var c = curAd; curAd = null; c(); } }
 /* يشغّل إعلان فوق أي مكان (المشغّل أو الشاشة كاملة)، وبعدين ينادي done */
-function playAd(a, holder, label, done) {
+function playAd(a, holder, label, done, opt) {
+  opt = opt || {};
   endAd();
   var ov = el('div', 'adov'), vd = document.createElement('video'), fin = false;
   vd.playsInline = true; vd.preload = 'auto'; vd.setAttribute('disablepictureinpicture', '');
   vd.src = demo ? 'assets/demo.mp4' : 'stream/' + encodeURIComponent(a.id) + '?t=' + encodeURIComponent(token || '');
-  var tag = el('div', 'adtag', label), skip = el('button', 'btn small adskip', 'تخطي ›'); skip.type = 'button'; skip.hidden = true;
+  var tag = el('div', 'adtag', label), skip = el('button', 'btn small adskip', opt.skipText || 'تخطي ›'); skip.type = 'button'; skip.hidden = true;
   var snd = el('button', 'btn small adsnd', '🔇 شغّل الصوت'); snd.type = 'button'; snd.hidden = true;
   function finish() { if (fin) return; fin = true; curAd = null; clearTimeout(st5); try { vd.pause(); vd.removeAttribute('src'); vd.load(); } catch (e) {} ov.remove(); if (done) done(); }
   curAd = finish;
   vd.onended = finish; vd.onerror = finish; skip.onclick = function (e) { e.stopPropagation(); finish(); };
   snd.onclick = function (e) { e.stopPropagation(); vd.muted = false; snd.hidden = true; };
-  var st5 = setTimeout(function () { skip.hidden = false; try { skip.focus(); } catch (e) {} }, 5000);
+  var st5 = setTimeout(function () { skip.hidden = false; try { skip.focus(); } catch (e) {} }, opt.skipNow ? 0 : 5000);
   ov.appendChild(vd); ov.appendChild(tag); ov.appendChild(skip); ov.appendChild(snd); holder.appendChild(ov);
   vd.play().catch(function () { vd.muted = true; snd.hidden = false; vd.play().catch(finish); });
   return finish;
@@ -2328,7 +2349,11 @@ function startVideo(v, st) {
     if (vd.duration && vd.currentTime / vd.duration > 0.92 && !done()[v.id]) markDone(v);
   });
   vd.addEventListener('pause', function () { savePos(v, vd); });
-  vd.addEventListener('ended', function () { markDone(v); var a = poses(); delete a[v.id]; jset('pos', a); upNext(); });
+  vd.addEventListener('ended', function () {
+    markDone(v); var a = poses(); delete a[v.id]; jset('pos', a);
+    var outs = outroOn() ? introsFor(v, 'outros').filter(canAd) : [];
+    if (outs.length) playAd(adPick(outs), st, 'الخاتمة', function () { if (queue[qIndex] === v && !$('player').hidden) upNext(); }, { skipNow: true, skipText: 'تخطي الخاتمة ›' }); else upNext();
+  });
   var retried = false;
   vd.addEventListener('error', function () {
     if (failed || demo) return;
@@ -2406,8 +2431,12 @@ function play(i) {
   $('openDrive').hidden = demo; if (!demo) $('openDrive').href = 'https://drive.google.com/file/d/' + encodeURIComponent(v.id) + '/view';
   setDlButton(v);
   var preAds = adPreOn() ? adsFor(v).filter(canAd).filter(function (a) { return a.id !== v.id; }) : [];
-  if (preAds.length && (demo || canStream())) playAd(adPick(preAds), st, 'فاصل · الحلقة تبدأ بعده', function () { if (queue[qIndex] === v && !$('player').hidden) startVideo(v, st); });
-  else if (demo || canStream() || (isDl(v.id) && swReady())) startVideo(v, st);
+  /* المقدمة: قبل الحلقة، إلا إذا كنت تكمل من نص الحلقة */
+  var resuming = (poses()[v.id] || {}).t > 10;
+  var intros = introOn() && !resuming ? introsFor(v, 'intros').filter(canAd) : [];
+  function begin(now) { if (queue[qIndex] !== v || (!now && $('player').hidden)) return; if (intros.length) playAd(adPick(intros), st, 'المقدمة', function () { if (queue[qIndex] === v && !$('player').hidden) startVideo(v, st); }, { skipNow: true, skipText: 'تخطي المقدمة ›' }); else startVideo(v, st); }
+  if (preAds.length && (demo || canStream())) playAd(adPick(preAds), st, 'فاصل · الحلقة تبدأ بعده', function () { begin(); });
+  else if (demo || canStream() || (isDl(v.id) && swReady())) begin(true);
   else if (offline) st.appendChild(el('div', 'demo', 'هذه الحلقة غير محمّلة. اتصل بالإنترنت لمشاهدتها.'));
   else driveFrame(v, st);
   if ($('player').hidden) navPush({ p: 1 });
@@ -2606,7 +2635,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795261826';
+var APP_V = '1795652156';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
