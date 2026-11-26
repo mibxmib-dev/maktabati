@@ -693,7 +693,12 @@ function saveLib() {
 /* بعد التحديث: نشيل اللي انحذف من Drive */
 function pruneLib() {
   var keep = {}, st = [rootKey];
-  while (st.length) { var id = st.pop(); if (keep[id] || !nodes[id]) continue; keep[id] = 1; (nodes[id].kids || []).forEach(function (k) { st.push(k); }); }
+  while (st.length) {
+    var id = st.pop(); if (keep[id] || !nodes[id]) continue; keep[id] = 1; var n = nodes[id];
+    (n.kids || []).forEach(function (k) { st.push(k); });
+    /* المقدمات والخواتم والإعلانات مو ضمن الحلقات، بس لازم نحتفظ فيها (كانت تنمسح بعد كل تحديث) */
+    ['intros', 'outros', 'ads'].forEach(function (p) { (n[p] || []).forEach(function (k) { keep[k] = 1; }); });
+  }
   Object.keys(nodes).forEach(function (k) { if (!keep[k]) delete nodes[k]; });
 }
 
@@ -2768,7 +2773,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795663605';
+var APP_V = '1795664302';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
