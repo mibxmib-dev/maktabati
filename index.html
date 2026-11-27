@@ -2943,6 +2943,17 @@ function startVideo(v, st) {
     var outs = outroOn() ? introsFor(v, 'outros').filter(canAd) : [];
     if (outs.length) playAd(adPick(outs), st, 'الخاتمة', function () { if (queue[qIndex] === v && !$('player').hidden) upNext(); }, { skipNow: true, skipText: 'تخطي الخاتمة ›' }); else upNext();
   });
+  /* الصوت يشتغل والصورة سودا: صيغة صورة ما يدعمها الجهاز (مثل HEVC) فنتحول لمشغّل قوقل اللي يحوّلها */
+  vd.addEventListener('playing', function chkPic() {
+    vd.removeEventListener('playing', chkPic);
+    setTimeout(function () {
+      if (failed || demo || offline || $('player').hidden || !curVideo || curVideo.el !== vd) return;
+      if (vd.videoWidth === 0 && vd.currentTime > 0.3) {
+        failed = true; try { vd.pause(); } catch (e) {}
+        driveFrame(v, st, 'الصوت اشتغل لكن الصورة سودا: صيغة الصورة في هذا الملف (غالباً HEVC أو H.265) ما يقدر الجهاز يعرضها، فانتقلت لمشغّل Google Drive. مرّر المجلد على أداة التحويل ويشتغل هنا عادي.');
+      }
+    }, 2500);
+  });
   var retried = false;
   vd.addEventListener('error', function () {
     if (failed || demo) return;
@@ -3233,7 +3244,7 @@ function renew() {
   if (!canRenew()) return false;
   sset('mk_silent', '1'); Intro.stop && Intro.stop(); location.replace(authUrl(true)); return true;
 }
-var APP_V = '1795733043';
+var APP_V = '1795781577';
 function checkUpdate() {
   if (APP_V === 'dev' || !onSite() || !navigator.onLine || !$('player').hidden) return;
   fetch('./?u=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
